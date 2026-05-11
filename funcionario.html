@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Funcionários - ASCRA</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+  >
+
+</head>
+
+<body class="pagina-login">
+
+  <!-- LOGIN FUNCIONÁRIO -->
+  <div class="caixa-login" id="loginFuncionario">
+
+    <!-- ESQUERDA -->
+    <div class="lado-esquerdo">
+
+      <h1>
+        Área de Funcionários
+      </h1>
+
+      <p class="subtitulo">
+        Acesso à plataforma de requisições
+      </p>
+
+      <!-- EMAIL -->
+      <div class="grupo-input">
+
+        <label>Email</label>
+
+        <input
+          type="email"
+          id="email"
+          placeholder="Digite o email"
+          autocomplete="off"
+        >
+
+      </div>
+
+      <!-- PASSWORD -->
+      <div class="grupo-input">
+
+        <label>Palavra-passe</label>
+
+        <input
+          type="password"
+          id="password"
+          placeholder="Digite a palavra-passe"
+          autocomplete="new-password"
+        >
+
+      </div>
+
+      <!-- ERRO -->
+      <p id="mensagem" class="mensagem-erro"></p>
+
+      <!-- BOTÕES -->
+      <div class="botoes-login">
+
+        <button id="criar" class="btn-azul">
+          Criar Conta
+        </button>
+
+        <button id="entrar" class="btn-verde">
+          Entrar
+        </button>
+
+        <button id="sair" class="btn-vermelho">
+          Sair
+        </button>
+
+      </div>
+
+      <!-- RESET -->
+      <a href="#" id="reset" class="link-reset">
+        Esqueceste a tua palavra-passe?
+      </a>
+
+      <!-- VOLTAR -->
+      <a href="index.html" class="btn-voltar">
+        ⬅ Voltar
+      </a>
+
+    </div>
+
+    <!-- DIREITA -->
+    <div class="lado-direito">
+
+      <img
+        src="https://somosipss.pt/ipss_logo/SqMKW4ZYuHDRIWLQ8OS4.png"
+        alt="ASCRA"
+      >
+
+    </div>
+
+  </div>
+
+  <!-- ÁREA FUNCIONÁRIO -->
+  <div
+    class="caixa-login requisicao-box"
+    id="areaFuncionario"
+    style="display:none;"
+  >
+
+    <div class="lado-esquerdo">
+
+      <h1>
+        Requisição de Veículo
+      </h1>
+
+      <p id="funcionarioInfo"></p>
+
+      <!-- VEÍCULO -->
+      <div class="grupo-input">
+
+        <label>Veículo</label>
+
+        <select id="selectVeiculo">
+          <option value="">
+            Selecionar veículo
+          </option>
+        </select>
+
+      </div>
+
+      <!-- CONDUTOR -->
+      <div class="grupo-input">
+
+        <label>Condutor</label>
+
+        <select id="selectCondutor">
+          <option value="">
+            Selecionar condutor
+          </option>
+        </select>
+
+      </div>
+
+      <!-- DATA -->
+      <div class="grupo-input">
+
+        <label>Data</label>
+
+        <input type="date" id="dataRequisicao">
+
+      </div>
+
+      <!-- OBSERVAÇÃO -->
+      <div class="grupo-input">
+
+        <label>Observação</label>
+
+        <textarea
+          id="observacaoRequisicao"
+          placeholder="Motivo / observação"
+        ></textarea>
+
+      </div>
+
+      <p
+        id="mensagemRequisicao"
+        class="mensagem-erro"
+      ></p>
+
+      <!-- BOTÕES -->
+      <div class="botoes-login">
+
+        <button
+          id="enviarRequisicao"
+          class="btn-verde"
+        >
+          Enviar Requisição
+        </button>
+
+        <button
+          id="sairAreaFuncionario"
+          class="btn-vermelho"
+        >
+          Sair
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script type="module" src="funcionario.js"></script>
+
+</body>
+</html>

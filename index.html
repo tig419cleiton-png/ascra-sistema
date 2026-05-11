@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <!-- BARRA AZUL -->
+<header class="topo">
+
+  <div class="barra-esquerda">
+    ASCRA Apúlia
+  </div>
+
+  <div class="barra-direita">
+    Sistema Interno
+  </div>
+
+</header>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>ASCRA Apúlia</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+  >
+</head>
+
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+
+    <!-- ESQUERDA -->
+    <div class="hero-esquerda">
+
+      <h1>
+        ASCRA Apúlia
+      </h1>
+
+      <h2>
+        ASCRA - Associação Social Cultural e Recreativa de Apúlia
+      </h2>
+
+      <p class="descricao">
+        Plataforma interna de gestão de veículos, condutores e requisições da ASCRA.
+      </p>
+
+      <!-- CONTACTOS -->
+      <div class="contactos">
+
+        <div class="contacto">
+          <i class="fa-regular fa-envelope"></i>
+
+          <div>
+            <strong>Email</strong>
+            <p>ascra.ascra@gmail.com</p>
+          </div>
+        </div>
+
+        <div class="contacto">
+          <i class="fa-solid fa-phone"></i>
+
+          <div>
+            <strong>Telefone</strong>
+            <p>253961727</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BOTÕES -->
+      <div class="botoes-acesso">
+
+        <a href="admin.html" class="botao botao-admin">
+          Administrador
+        </a>
+
+        <a href="funcionario.html" class="botao botao-funcionario">
+          Funcionários
+        </a>
+
+      </div>
+
+    </div>
+
+    <!-- DIREITA -->
+    <div class="hero-direita">
+
+      <div class="slideshow-container">
+
+        <img
+          id="slide"
+          src="https://somosipss.pt/ipss_logo/SqMKW4ZYuHDRIWLQ8OS4.png"
+          alt="ASCRA"
+        >
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <script>
+
+    const imagens = [
+
+      "https://somosipss.pt/ipss_logo/SqMKW4ZYuHDRIWLQ8OS4.png",
+
+      "https://e24.pt/wp-content/uploads/2023/07/NMC03948-scaled-1.jpg",
+
+      "https://ominho.pt/wp-content/uploads/2018/02/ascra.jpg",
+
+      "https://www.municipio.esposende.pt/thumbs/cmesposende/uploads/news/image/7365/sedcsv_1_1024_2500.jpg"
+
+    ];
+
+    let indiceAtual = 0;
+
+    const slide = document.getElementById("slide");
+
+    function trocarImagem() {
+
+      indiceAtual++;
+
+      if (indiceAtual >= imagens.length) {
+        indiceAtual = 0;
+      }
+
+      slide.style.opacity = 0;
+
+      setTimeout(() => {
+
+        slide.src = imagens[indiceAtual];
+
+        slide.style.opacity = 1;
+
+      }, 300);
+
+    }
+
+    setInterval(trocarImagem, 4000);
+
+  </script>
+
+</body>
+</html>

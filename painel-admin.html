@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Painel do Administrador - ASCRA</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+  <div class="admin-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <h2>ASCRA Admin</h2>
+
+      <nav>
+
+        <button class="menu-btn" data-section="dashboard">
+          Dashboard
+        </button>
+
+        <button class="menu-btn" data-section="requisicoes">
+          Requisições
+        </button>
+
+        <button class="menu-btn" data-section="veiculos">
+          Veículos
+        </button>
+
+        <button class="menu-btn" data-section="condutores">
+          Condutores
+        </button>
+
+        <button class="menu-btn" data-section="inspecoes">
+          Inspeções
+        </button>
+
+        <button id="logoutAdmin">
+          Sair
+        </button>
+
+      </nav>
+
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main-content">
+
+      <!-- HEADER -->
+      <header>
+
+        <h1>
+          Painel do Administrador
+        </h1>
+
+        <p class="admin-email" id="adminInfo">
+          A verificar acesso...
+        </p>
+
+      </header>
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="admin-section active-section">
+
+        <!-- BOAS VINDAS -->
+        <div class="card-bemvindo">
+
+          <h2>
+            Bem-vindo ao Sistema Interno da ASCRA
+          </h2>
+
+          <p>
+            Resumo geral da frota, condutores e requisições.
+          </p>
+
+        </div>
+
+        <!-- CARDS -->
+        <div class="cards-dashboard">
+
+          <div class="card-info">
+
+            <h3>
+              Veículos registados
+            </h3>
+
+            <span id="totalVeiculos">
+              0
+            </span>
+
+          </div>
+
+          <div class="card-info">
+
+            <h3>
+              Veículos ativos
+            </h3>
+
+            <span id="veiculosAtivos">
+              0
+            </span>
+
+          </div>
+
+          <div class="card-info">
+
+            <h3>
+              Condutores registados
+            </h3>
+
+            <span id="totalCondutores">
+              0
+            </span>
+
+          </div>
+
+          <div class="card-info">
+
+            <h3>
+              Requisições pendentes
+            </h3>
+
+            <span id="requisicoesPendentes">
+              0
+            </span>
+
+          </div>
+
+        </div>
+
+        <!-- GRÁFICO -->
+        <div class="grafico-box">
+
+          <h2>
+            Estado das Requisições
+          </h2>
+
+          <canvas id="graficoRequisicoes"></canvas>
+
+        </div>
+
+      </section>
+
+      <!-- VEÍCULOS -->
+      <section id="veiculos" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Veículos
+          </h2>
+
+          <button class="btn-add" id="abrirFormVeiculo">
+            + Adicionar Veículo
+          </button>
+
+          <div
+            id="formVeiculo"
+            class="form-admin"
+            style="display:none;"
+          >
+
+            <label>Marca</label>
+            <input id="marcaVeiculo" type="text">
+
+            <label>Modelo</label>
+            <input id="modeloVeiculo" type="text">
+
+            <label>Matrícula</label>
+            <input
+              id="matriculaVeiculo"
+              type="text"
+              maxlength="8"
+            >
+
+            <p id="mensagemVeiculo" class="mensagem-erro"></p>
+
+            <button id="guardarVeiculo">
+              Guardar
+            </button>
+
+          </div>
+
+          <div id="listaVeiculos" class="lista-dados">
+            A carregar veículos...
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- CONDUTORES -->
+      <section id="condutores" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Condutores
+          </h2>
+
+          <button class="btn-add" id="abrirFormCondutor">
+            + Adicionar Condutor
+          </button>
+
+          <div
+            id="formCondutor"
+            class="form-admin"
+            style="display:none;"
+          >
+
+            <label>Nome do condutor</label>
+            <input id="nomeCondutor" type="text">
+
+            <label>Carta de condução</label>
+            <input
+              id="cartaCondutor"
+              type="text"
+              maxlength="9"
+            >
+
+            <label>Data de validade</label>
+            <input
+              id="validadeCondutor"
+              type="date"
+            >
+
+            <label>Telefone</label>
+            <input
+              id="telefoneCondutor"
+              type="text"
+              maxlength="9"
+            >
+
+            <p id="mensagemCondutor" class="mensagem-erro"></p>
+
+            <button id="guardarCondutor">
+              Guardar
+            </button>
+
+          </div>
+
+          <div id="listaCondutores" class="lista-dados">
+            A carregar condutores...
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- REQUISIÇÕES -->
+      <section id="requisicoes" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Requisições
+          </h2>
+
+          <div id="listaRequisicoes" class="lista-dados">
+            A carregar requisições...
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- INSPEÇÕES -->
+      <section id="inspecoes" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Inspeções
+          </h2>
+
+          <p>
+            Gestão de inspeções e alertas.
+          </p>
+
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <script type="module" src="painel-admin.js"></script>
+
+</body>
+</html>
