@@ -84,6 +84,18 @@
 
         </div>
 
+        <!-- ALERTAS -->
+        <div
+          class="alertas-dashboard"
+          id="alertasDashboard"
+        >
+
+          <div class="alerta-card alerta-ok">
+            Nenhum alerta encontrado.
+          </div>
+
+        </div>
+
         <!-- CARDS -->
         <div class="cards-dashboard">
 
@@ -265,8 +277,84 @@
             Requisições
           </h2>
 
-          <div id="listaRequisicoes" class="lista-dados">
+          <!-- BOTÃO -->
+          <button
+            class="btn-add"
+            id="abrirFormRequisicao"
+          >
+            + Nova Requisição
+          </button>
+
+          <!-- FORM -->
+          <div
+            id="formRequisicaoAdmin"
+            class="form-admin"
+            style="display:none;"
+          >
+
+            <label>
+              Veículo
+            </label>
+
+            <select id="veiculoRequisicaoAdmin">
+
+              <option value="">
+                Selecionar veículo
+              </option>
+
+            </select>
+
+            <label>
+              Condutor
+            </label>
+
+            <select id="condutorRequisicaoAdmin">
+
+              <option value="">
+                Selecionar condutor
+              </option>
+
+            </select>
+
+            <label>
+              Data
+            </label>
+
+            <input
+              type="date"
+              id="dataRequisicaoAdmin"
+            >
+
+            <label>
+              Observação
+            </label>
+
+            <textarea
+              id="observacaoRequisicaoAdmin"
+              placeholder="Motivo da requisição"
+            ></textarea>
+
+            <p
+              id="mensagemRequisicaoAdmin"
+              class="mensagem-erro"
+            ></p>
+
+            <button id="guardarRequisicaoAdmin">
+
+              Guardar requisição
+
+            </button>
+
+          </div>
+
+          <!-- LISTA -->
+          <div
+            id="listaRequisicoes"
+            class="lista-dados"
+          >
+
             A carregar requisições...
+
           </div>
 
         </div>

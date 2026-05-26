@@ -2372,3 +2372,210 @@ body{
 #graficoRequisicoes{
   max-height:320px;
 }
+/* =========================
+   VEÍCULOS - DETALHES, MANUTENÇÃO E ALERTAS
+========================= */
+
+.btn-ver-detalhes {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 8px;
+  transition: 0.2s ease;
+}
+
+.btn-ver-detalhes:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.lista-manutencoes {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manutencao-item {
+  background: white;
+  border-left: 5px solid #2563eb;
+  padding: 14px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+  line-height: 1.6;
+}
+
+.form-manutencao {
+  margin-top: 20px;
+  background: #eef2ff;
+  padding: 18px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-manutencao label {
+  font-weight: 700;
+  color: #0b1633;
+  margin-top: 5px;
+}
+
+.form-manutencao input,
+.form-manutencao textarea {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
+  background: white;
+  outline: none;
+}
+
+.form-manutencao textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.btn-guardar-manutencao {
+  margin-top: 10px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.btn-guardar-manutencao:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+}
+
+.alerta-manutencao {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.alerta-vermelho {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.alerta-amarelo {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.alerta-verde {
+  background: #dcfce7;
+  color: #166534;
+}
+.form-manutencao select {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
+  background: white;
+  outline: none;
+}
+/* =========================
+   ALERTAS DASHBOARD
+========================= */
+
+.alertas-dashboard{
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  margin-bottom:30px;
+}
+
+.alerta-card{
+  padding:18px 22px;
+  border-radius:18px;
+  font-size:18px;
+  font-weight:700;
+  box-shadow:0 4px 10px rgba(0,0,0,0.05);
+}
+
+.alerta-ok{
+  background:#dcfce7;
+  color:#166534;
+  border-left:6px solid #22c55e;
+}
+
+.alerta-warning{
+  background:#fef3c7;
+  color:#92400e;
+  border-left:6px solid #facc15;
+}
+
+.alerta-danger{
+  background:#fee2e2;
+  color:#991b1b;
+  border-left:6px solid #ef4444;
+}
+/* =========================
+   REQUISIÇÃO PELO ADMIN
+========================= */
+
+#formRequisicaoAdmin {
+  margin-top: 20px;
+  background: #f9fafb;
+  padding: 22px;
+  border-radius: 18px;
+  border-left: 5px solid #3563ff;
+}
+
+#formRequisicaoAdmin label {
+  display: block;
+  margin: 14px 0 8px;
+  font-weight: 700;
+  color: #0b1633;
+}
+
+#formRequisicaoAdmin select,
+#formRequisicaoAdmin input,
+#formRequisicaoAdmin textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: #edf2ff;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 16px;
+}
+
+#formRequisicaoAdmin textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+#guardarRequisicaoAdmin {
+  margin-top: 18px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 15px 22px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#guardarRequisicaoAdmin:hover {
+  background: #15803d;
+}
