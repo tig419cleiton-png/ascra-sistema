@@ -18,6 +18,15 @@ import {
   deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+import { obterConfiguracoes } from "./configuracoes.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyAVGiLrKadXgMtt9h54hDIrV0mwrRxBTv0",
   authDomain: "ascra-sistema.firebaseapp.com",
@@ -30,6 +39,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 const adminInfo = document.getElementById("adminInfo");
 const logoutAdmin = document.getElementById("logoutAdmin");
@@ -57,7 +67,7 @@ menuButtons.forEach(btn => {
 // =========================
 logoutAdmin.addEventListener("click", async () => {
   await signOut(auth);
-  window.location.href = "admin.html";
+  window.location.href = "index.html";
 });
 
 // =========================
@@ -77,16 +87,20 @@ function diasAte(data) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-function criarAlerta(proximaData) {
+function criarAlerta(proximaData, gerarAlertas = true, diasAlerta = 30) {
   const dias = diasAte(proximaData);
 
   if (dias === null) return "";
+
+  if (!gerarAlertas) {
+    return `<span class="alerta-manutencao alerta-verde">Alertas desativados</span>`;
+  }
 
   if (dias < 0) {
     return `<span class="alerta-manutencao alerta-vermelho">⚠ Em atraso</span>`;
   }
 
-  if (dias <= 30) {
+  if (dias <= diasAlerta) {
     return `<span class="alerta-manutencao alerta-amarelo">⚠ Faltam ${dias} dias</span>`;
   }
 
@@ -121,7 +135,9 @@ async function atualizarDashboard() {
 // =========================
 // ALERTAS DASHBOARD
 // =========================
-function atualizarAlertas(manutencoes) {
+let ultimasManutencoes = [];
+
+async function atualizarPainelAlertas() {
   const box = document.getElementById("alertasDashboard");
 
   if (!box) return;
@@ -131,48 +147,133 @@ function atualizarAlertas(manutencoes) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  let totalAlertas = 0;
+  const itensAlerta = [];
 
-  manutencoes.forEach(m => {
+  // 1) MANUTENÇÕES / INSPEÇÕES DOS VEÍCULOS
+  ultimasManutencoes.forEach(m => {
     if (!m.proximaData) return;
+    if (m.gerarAlertas === false) return;
 
     const proxima = new Date(m.proximaData);
     proxima.setHours(0, 0, 0, 0);
 
-    const diff = Math.ceil(
-      (proxima - hoje) / (1000 * 60 * 60 * 24)
-    );
-
-    let classe = "";
-    let texto = "";
+    const diff = Math.ceil((proxima - hoje) / (1000 * 60 * 60 * 24));
+    const limiteAlerta = m.diasAlerta || 30;
 
     if (diff < 0) {
-      classe = "alerta-danger";
-      texto = `⚠ ${m.tipo} expirado no veículo ${m.veiculoNome}`;
-    } else if (diff <= 30) {
-      classe = "alerta-warning";
-      texto = `⚠ ${m.tipo} do veículo ${m.veiculoNome} expira em ${diff} dias`;
-    }
-
-    if (classe) {
-      totalAlertas++;
-
-      box.innerHTML += `
-        <div class="alerta-card ${classe}">
-          ${texto}
-        </div>
-      `;
+      itensAlerta.push({
+        urgencia: 2,
+        classe: "alerta-danger",
+        texto: `⚠ ${m.tipo} expirado no veículo ${m.veiculoNome}`,
+        secao: "veiculos"
+      });
+    } else if (diff <= limiteAlerta) {
+      itensAlerta.push({
+        urgencia: 1,
+        classe: "alerta-warning",
+        texto: `⚠ ${m.tipo} do veículo ${m.veiculoNome} expira em ${diff} dias`,
+        secao: "veiculos"
+      });
     }
   });
 
-  if (totalAlertas === 0) {
+  // 2) CARTAS DE CONDUÇÃO A EXPIRAR
+  try {
+    const snapCondutores = await getDocs(collection(db, "condutores"));
+
+    snapCondutores.forEach(docSnap => {
+      const c = docSnap.data();
+
+      if (!c.validade || c.estado !== "ativo") return;
+
+      const validade = new Date(c.validade);
+      validade.setHours(0, 0, 0, 0);
+
+      const diff = Math.ceil((validade - hoje) / (1000 * 60 * 60 * 24));
+
+      if (diff < 0) {
+        itensAlerta.push({
+          urgencia: 2,
+          classe: "alerta-danger",
+          texto: `⚠ Carta de condução de ${c.nome || "condutor"} expirada`,
+          secao: "condutores"
+        });
+      } else if (diff <= 30) {
+        itensAlerta.push({
+          urgencia: 1,
+          classe: "alerta-warning",
+          texto: `⚠ Carta de condução de ${c.nome || "condutor"} expira em ${diff} dias`,
+          secao: "condutores"
+        });
+      }
+    });
+  } catch (error) {
+    console.error(error);
+  }
+
+  // 3) REQUISIÇÕES PENDENTES
+  try {
+    const snapRequisicoes = await getDocs(collection(db, "requisicoes"));
+
+    let totalPendentes = 0;
+
+    snapRequisicoes.forEach(docSnap => {
+      if ((docSnap.data().estado || "pendente") === "pendente") totalPendentes++;
+    });
+
+    if (totalPendentes > 0) {
+      itensAlerta.push({
+        urgencia: 1,
+        classe: "alerta-warning",
+        texto: `📋 ${totalPendentes} requisição(ões) por validar`,
+        secao: "requisicoes"
+      });
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  // ORDENAR: mais urgentes primeiro
+  itensAlerta.sort((a, b) => b.urgencia - a.urgencia);
+
+  if (itensAlerta.length === 0) {
     box.innerHTML = `
       <div class="alerta-card alerta-ok">
         Nenhum alerta encontrado.
       </div>
     `;
+    return;
   }
+
+  itensAlerta.forEach(item => {
+    box.innerHTML += `
+      <div class="alerta-card ${item.classe} alerta-clicavel" data-secao="${item.secao}">
+        ${item.texto}
+      </div>
+    `;
+  });
 }
+
+// Clicar num alerta navega para a secção correspondente
+document.getElementById("alertasDashboard")?.addEventListener("click", (e) => {
+  const cartaoAlerta = e.target.closest(".alerta-clicavel");
+  if (!cartaoAlerta) return;
+
+  const secao = cartaoAlerta.dataset.secao;
+  const botaoMenu = document.querySelector(`.menu-btn[data-section="${secao}"]`);
+
+  if (botaoMenu) botaoMenu.click();
+});
+
+// Clicar num card do dashboard navega para a secção correspondente
+document.querySelectorAll(".card-clicavel").forEach(card => {
+  card.addEventListener("click", () => {
+    const secao = card.dataset.secao;
+    const botaoMenu = document.querySelector(`.menu-btn[data-section="${secao}"]`);
+
+    if (botaoMenu) botaoMenu.click();
+  });
+});
 
 // =========================
 // VEÍCULOS
@@ -188,7 +289,8 @@ async function carregarVeiculos() {
 
   if (veiculosSnap.empty) {
     lista.innerHTML = "<p>Nenhum veículo.</p>";
-    atualizarAlertas([]);
+    ultimasManutencoes = [];
+    await atualizarPainelAlertas();
     return;
   }
 
@@ -206,17 +308,26 @@ async function carregarVeiculos() {
 
         listaManutencoes.push({
           ...m,
-          veiculoNome
+          veiculoNome,
+          gerarAlertas: v.gerarAlertas !== false,
+          diasAlerta: v.diasAlerta || 30
         });
 
         manutencoesHTML += `
           <div class="manutencao-item">
             <strong>${m.tipo || "Serviço"}</strong>
-            ${criarAlerta(m.proximaData)}
+            ${criarAlerta(m.proximaData, v.gerarAlertas !== false, v.diasAlerta || 30)}
             <br>
             Data efetuada: ${m.dataServico || "—"}<br>
             Próxima data: ${m.proximaData || "—"}<br>
-            Observações: ${m.observacoes || "—"}
+            Observações: ${m.observacoes || "—"}<br>
+            ${
+              m.documentos && m.documentos.length > 0
+                ? `Documentos: ` + m.documentos.map((docUrl, i) =>
+                    `<a href="${docUrl}" target="_blank" rel="noopener">Anexo ${i + 1}</a>`
+                  ).join(" | ")
+                : "Sem documentos anexados."
+            }
           </div>
         `;
       }
@@ -246,7 +357,30 @@ async function carregarVeiculos() {
         <div class="detalhes-item">
           Matrícula: ${v.matricula || "Sem matrícula"}<br>
           Data da matrícula: ${v.dataMatricula || "—"}<br>
-          Estado: ${v.estado || "ativo"}<br><br>
+          Estado: ${v.estado || "ativo"}<br>
+          Alertas: ${v.gerarAlertas === false ? "Desativados" : `Ativos (aviso ${v.diasAlerta || 30} dias antes)`}<br><br>
+
+          <strong>Quilometragem</strong><br>
+          Atual: <span id="kmAtual-${id}">${(v.quilometragem || 0).toLocaleString("pt-PT")}</span> km
+
+          <div class="form-manutencao" style="margin-top:10px;">
+
+            <label>Atualizar quilometragem (km)</label>
+
+            <input
+              type="number"
+              id="novaQuilometragem-${id}"
+              min="${v.quilometragem || 0}"
+              placeholder="Nova leitura do conta-quilómetros"
+            >
+
+            <button class="btn-atualizar-km" data-id="${id}">
+              Atualizar km
+            </button>
+
+          </div>
+
+          <br>
 
           <strong>Inspeções / Serviços / Manutenção</strong>
 
@@ -294,6 +428,15 @@ async function carregarVeiculos() {
               placeholder="Descrição do serviço realizado"
             ></textarea>
 
+            <label>Documentos (fatura, comprovativo, etc.)</label>
+
+            <input
+              type="file"
+              id="documentosManutencao-${id}"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png"
+            >
+
             <button class="btn-guardar-manutencao" data-id="${id}">
               Guardar manutenção
             </button>
@@ -305,7 +448,8 @@ async function carregarVeiculos() {
     `;
   });
 
-  atualizarAlertas(listaManutencoes);
+  ultimasManutencoes = listaManutencoes;
+  await atualizarPainelAlertas();
 }
 
 // =========================
@@ -339,6 +483,7 @@ async function carregarCondutores() {
 
         <div class="detalhes-item">
           Carta: ${c.carta || "—"}<br>
+          Categoria: ${c.categoria || "—"}<br>
           Validade: ${c.validade || "—"}<br>
           Telefone: ${c.telefone || "—"}<br>
           Estado: ${c.estado || "ativo"}
@@ -395,9 +540,20 @@ async function carregarSelectsRequisicaoAdmin() {
 // =========================
 // FORM VEÍCULO
 // =========================
-document.getElementById("abrirFormVeiculo").onclick = () => {
+document.getElementById("abrirFormVeiculo").onclick = async () => {
   const form = document.getElementById("formVeiculo");
-  form.style.display = form.style.display === "none" ? "block" : "none";
+  const vaiAbrir = form.style.display === "none";
+
+  form.style.display = vaiAbrir ? "block" : "none";
+
+  if (vaiAbrir) {
+
+    const cfg = await obterConfiguracoes();
+
+    document.getElementById("gerarAlertasVeiculo").checked = cfg.gerarAlertasDefeito ?? true;
+    document.getElementById("diasAlertaVeiculo").value = cfg.diasAlertaDefeito ?? 30;
+
+  }
 };
 
 document.getElementById("guardarVeiculo").onclick = async () => {
@@ -405,6 +561,9 @@ document.getElementById("guardarVeiculo").onclick = async () => {
   const modelo = document.getElementById("modeloVeiculo").value.trim();
   const matricula = document.getElementById("matriculaVeiculo").value.trim().toUpperCase();
   const dataMatricula = document.getElementById("dataMatriculaVeiculo")?.value || "";
+  const quilometragem = parseInt(document.getElementById("quilometragemVeiculo")?.value) || 0;
+  const gerarAlertas = document.getElementById("gerarAlertasVeiculo")?.checked ?? true;
+  const diasAlerta = parseInt(document.getElementById("diasAlertaVeiculo")?.value) || 30;
   const mensagem = document.getElementById("mensagemVeiculo");
 
   mensagem.textContent = "";
@@ -436,12 +595,18 @@ document.getElementById("guardarVeiculo").onclick = async () => {
     modelo,
     matricula,
     dataMatricula,
+    quilometragem,
+    gerarAlertas,
+    diasAlerta,
     estado: "ativo"
   });
 
   document.getElementById("marcaVeiculo").value = "";
   document.getElementById("modeloVeiculo").value = "";
   document.getElementById("matriculaVeiculo").value = "";
+  document.getElementById("quilometragemVeiculo").value = "";
+  document.getElementById("diasAlertaVeiculo").value = "30";
+  document.getElementById("gerarAlertasVeiculo").checked = true;
 
   if (document.getElementById("dataMatriculaVeiculo")) {
     document.getElementById("dataMatriculaVeiculo").value = "";
@@ -466,6 +631,7 @@ document.getElementById("guardarCondutor").onclick = async () => {
   const nome = document.getElementById("nomeCondutor").value.trim();
   const carta = document.getElementById("cartaCondutor").value.trim();
   const validade = document.getElementById("validadeCondutor").value;
+  const categoria = document.getElementById("categoriaCondutor").value;
   const telefone = document.getElementById("telefoneCondutor").value.trim();
   const mensagem = document.getElementById("mensagemCondutor");
 
@@ -486,6 +652,11 @@ document.getElementById("guardarCondutor").onclick = async () => {
     return;
   }
 
+  if (!categoria) {
+    mensagem.textContent = "Seleciona a categoria da carta.";
+    return;
+  }
+
   if (!/^9[0-9]{8}$/.test(telefone)) {
     mensagem.textContent = "Telefone inválido.";
     return;
@@ -495,6 +666,7 @@ document.getElementById("guardarCondutor").onclick = async () => {
     nome,
     carta,
     validade,
+    categoria,
     telefone,
     estado: "ativo"
   });
@@ -502,6 +674,7 @@ document.getElementById("guardarCondutor").onclick = async () => {
   document.getElementById("nomeCondutor").value = "";
   document.getElementById("cartaCondutor").value = "";
   document.getElementById("validadeCondutor").value = "";
+  document.getElementById("categoriaCondutor").value = "";
   document.getElementById("telefoneCondutor").value = "";
 
   document.getElementById("formCondutor").style.display = "none";
@@ -575,7 +748,7 @@ if (guardarRequisicaoAdmin) {
       condutorNome,
       data,
       observacao,
-      estado: "pendente",
+      estado: "confirmada",
       criadoEm: new Date().toISOString()
     });
 
@@ -659,8 +832,17 @@ function ouvirRequisicoes() {
             Criado por: ${r.criadoPor || "funcionário"}<br>
             Veículo: ${r.veiculoNome || r.veiculoId || "—"}<br>
             Condutor: ${r.condutorNome || r.condutorId || "—"}<br>
-            Data: ${r.data || "—"}<br>
+            Período: ${
+              r.dataInicio && r.dataFim && r.dataInicio !== r.dataFim
+                ? `${r.dataInicio} a ${r.dataFim}`
+                : (r.dataInicio || r.data || "—")
+            }<br>
             Observação: ${r.observacao || "—"}
+            ${
+              r.estado === "cancelada" && r.motivoCancelamento
+                ? `<br>Motivo do cancelamento: ${r.motivoCancelamento}`
+                : ""
+            }
           </div>
 
         </div>
@@ -670,6 +852,8 @@ function ouvirRequisicoes() {
     document.getElementById("requisicoesPendentes").textContent = pendentes;
 
     atualizarGrafico(pendentes, confirmadas, canceladas);
+
+    atualizarPainelAlertas();
   });
 }
 
@@ -795,10 +979,43 @@ document.addEventListener("click", async (e) => {
   if (cancelar) {
     e.stopPropagation();
 
+    const motivo = prompt("Indica o motivo do cancelamento (obrigatório). O requisitante vai receber um email com esta informação:");
+
+    if (motivo === null) {
+      return;
+    }
+
+    if (!motivo.trim()) {
+      alert("É obrigatório indicar um motivo para cancelar a requisição.");
+      return;
+    }
+
     try {
-      await updateDoc(doc(db, "requisicoes", cancelar.dataset.id), {
-        estado: "cancelada"
+
+      const refRequisicao = doc(db, "requisicoes", cancelar.dataset.id);
+      const snap = await getDoc(refRequisicao);
+      const dadosRequisicao = snap.exists() ? snap.data() : {};
+
+      await updateDoc(refRequisicao, {
+        estado: "cancelada",
+        motivoCancelamento: motivo.trim(),
+        canceladoEm: new Date().toISOString()
       });
+
+      if (window.enviarEmailCancelamento) {
+
+        await window.enviarEmailCancelamento({
+          paraEmail: dadosRequisicao.funcionarioEmail,
+          veiculoNome: dadosRequisicao.veiculoNome,
+          periodo:
+            dadosRequisicao.dataInicio && dadosRequisicao.dataFim
+              ? `${dadosRequisicao.dataInicio} a ${dadosRequisicao.dataFim}`
+              : (dadosRequisicao.data || ""),
+          motivo: motivo.trim()
+        });
+
+      }
+
     } catch (error) {
       console.error(error);
       alert("Erro ao cancelar requisição.");
@@ -843,6 +1060,40 @@ document.addEventListener("click", async (e) => {
     return;
   }
 
+  const atualizarKm = e.target.closest(".btn-atualizar-km");
+
+  if (atualizarKm) {
+    e.stopPropagation();
+
+    const veiculoId = atualizarKm.dataset.id;
+    const inputKm = document.getElementById(`novaQuilometragem-${veiculoId}`);
+    const novoValor = parseInt(inputKm.value);
+
+    if (!novoValor || novoValor < 0) {
+      alert("Indica uma quilometragem válida.");
+      return;
+    }
+
+    try {
+
+      await updateDoc(doc(db, "veiculos", veiculoId), {
+        quilometragem: novoValor
+      });
+
+      await carregarVeiculos();
+
+    }
+
+    catch (error) {
+
+      console.error(error);
+      alert("Erro ao atualizar quilometragem.");
+
+    }
+
+    return;
+  }
+
   const guardarManutencao = e.target.closest(".btn-guardar-manutencao");
 
   if (guardarManutencao) {
@@ -854,6 +1105,7 @@ document.addEventListener("click", async (e) => {
     const dataServico = document.getElementById(`dataServico-${veiculoId}`).value;
     const proximaData = document.getElementById(`proximaData-${veiculoId}`).value;
     const observacoes = document.getElementById(`observacoesManutencao-${veiculoId}`).value.trim();
+    const inputDocumentos = document.getElementById(`documentosManutencao-${veiculoId}`);
 
     if (!tipo) {
       alert("Indica o tipo de serviço.");
@@ -870,16 +1122,57 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
-    await addDoc(collection(db, "manutencoes"), {
-      veiculoId,
-      tipo,
-      dataServico,
-      proximaData,
-      observacoes,
-      criadoEm: new Date().toISOString()
-    });
+    guardarManutencao.disabled = true;
+    guardarManutencao.textContent = "A guardar...";
 
-    await carregarVeiculos();
+    try {
+
+      const documentosUrls = [];
+
+      if (inputDocumentos && inputDocumentos.files.length > 0) {
+
+        for (const ficheiro of inputDocumentos.files) {
+
+          const caminho = `manutencoes/${veiculoId}/${Date.now()}-${ficheiro.name}`;
+          const storageRef = ref(storage, caminho);
+
+          await uploadBytes(storageRef, ficheiro);
+
+          const url = await getDownloadURL(storageRef);
+
+          documentosUrls.push(url);
+
+        }
+
+      }
+
+      await addDoc(collection(db, "manutencoes"), {
+        veiculoId,
+        tipo,
+        dataServico,
+        proximaData,
+        observacoes,
+        documentos: documentosUrls,
+        criadoEm: new Date().toISOString()
+      });
+
+      await carregarVeiculos();
+
+    }
+
+    catch (error) {
+
+      console.error(error);
+      alert("Erro ao guardar manutenção ou anexar documentos.");
+
+    }
+
+    finally {
+
+      guardarManutencao.disabled = false;
+      guardarManutencao.textContent = "Guardar manutenção";
+
+    }
 
     return;
   }
@@ -902,24 +1195,368 @@ document.addEventListener("click", async (e) => {
 // =========================
 onAuthStateChanged(auth, async user => {
   if (!user) {
-    window.location.href = "admin.html";
+    window.location.href = "index.html";
     return;
   }
 
   const snap = await getDoc(doc(db, "users", user.uid));
 
-  if (!snap.exists() || snap.data().tipo !== "admin") {
+  if (!snap.exists() || (snap.data().tipo !== "admin" && snap.data().tipo !== "motorista")) {
     await signOut(auth);
-    window.location.href = "admin.html";
+    window.location.href = "index.html";
     return;
   }
 
-  adminInfo.textContent = `Administrador: ${snap.data().email}`;
+  const dados = snap.data();
+  const tipoUtilizador = dados.tipo;
+
+  // ESCONDER ÁREAS RESTRITAS A ADMIN QUANDO É MOTORISTA
+  if (tipoUtilizador === "motorista") {
+
+    document.querySelectorAll(".admin-only").forEach(el => {
+      el.style.display = "none";
+    });
+
+    document.getElementById("tituloPainel").textContent = "Painel do Motorista";
+
+  } else {
+
+    document.getElementById("tituloPainel").textContent = "Painel do Administrador";
+
+  }
+
+  const nomeTipo = tipoUtilizador === "admin" ? "Administrador" : "Motorista";
+
+  adminInfo.textContent = `${nomeTipo}: ${dados.email}`;
 
   await carregarVeiculos();
   await carregarCondutores();
   await carregarSelectsRequisicaoAdmin();
   await atualizarDashboard();
+  await carregarFiltrosRelatorio();
 
   ouvirRequisicoes();
+});
+// =========================
+// RELATÓRIOS
+// =========================
+async function carregarFiltrosRelatorio() {
+
+  const selectVeiculo = document.getElementById("relatorioVeiculo");
+  const selectCondutor = document.getElementById("relatorioCondutor");
+  const selectTipoRelatorio = document.getElementById("relatorioTipo");
+
+  if (!selectVeiculo || !selectCondutor) return;
+
+  selectVeiculo.innerHTML = `<option value="">Todos os veículos</option>`;
+  selectCondutor.innerHTML = `<option value="">Todos os condutores</option>`;
+
+  const veiculosSnap = await getDocs(collection(db, "veiculos"));
+
+  veiculosSnap.forEach(docSnap => {
+    const v = docSnap.data();
+    const nome = `${v.marca || ""} ${v.modelo || ""} - ${v.matricula || ""}`.trim();
+
+    selectVeiculo.innerHTML += `<option value="${docSnap.id}">${nome}</option>`;
+  });
+
+  const condutoresSnap = await getDocs(collection(db, "condutores"));
+
+  condutoresSnap.forEach(docSnap => {
+    const c = docSnap.data();
+
+    selectCondutor.innerHTML += `<option value="${docSnap.id}">${c.nome || "Sem nome"}</option>`;
+  });
+
+  function ajustarCamposVisiveis() {
+
+    const ehManutencao = selectTipoRelatorio.value === "manutencoes";
+
+    document.getElementById("filtroCondutorWrapper").style.display = ehManutencao ? "none" : "block";
+    document.getElementById("filtroServicoWrapper").style.display = ehManutencao ? "block" : "none";
+
+  }
+
+  selectTipoRelatorio?.addEventListener("change", ajustarCamposVisiveis);
+
+  ajustarCamposVisiveis();
+
+}
+
+document.getElementById("gerarRelatorio")?.addEventListener("click", async () => {
+
+  const dataInicio = document.getElementById("relatorioDataInicio").value;
+  const dataFim = document.getElementById("relatorioDataFim").value;
+  const veiculoId = document.getElementById("relatorioVeiculo").value;
+  const condutorId = document.getElementById("relatorioCondutor").value;
+  const tipoServico = document.getElementById("relatorioServico").value;
+  const tipoRelatorio = document.getElementById("relatorioTipo").value;
+
+  const resumo = document.getElementById("resumoRelatorio");
+  const lista = document.getElementById("listaRelatorio");
+  const botaoExportar = document.getElementById("exportarRelatorioPDF");
+
+  resumo.textContent = "A gerar relatório...";
+  lista.innerHTML = "";
+  botaoExportar.style.display = "none";
+
+  ultimoRelatorioFiltros = { dataInicio, dataFim, veiculoId, condutorId, tipoServico, tipoRelatorio };
+  ultimoRelatorioResultados = [];
+  ultimoRelatorioVeiculosMap = {};
+
+  try {
+
+    if (tipoRelatorio === "requisicoes") {
+
+      const snap = await getDocs(collection(db, "requisicoes"));
+
+      const resultados = [];
+
+      snap.forEach(docSnap => {
+
+        const r = docSnap.data();
+
+        const dataRef = r.dataInicio || r.data || "";
+
+        if (dataInicio && dataRef < dataInicio) return;
+        if (dataFim && dataRef > dataFim) return;
+        if (veiculoId && r.veiculoId !== veiculoId) return;
+        if (condutorId && r.condutorId !== condutorId) return;
+
+        resultados.push(r);
+
+      });
+
+      resumo.textContent = `${resultados.length} requisição(ões) encontrada(s).`;
+
+      if (resultados.length === 0) {
+        lista.innerHTML = "<p>Nenhum resultado para os filtros escolhidos.</p>";
+        return;
+      }
+
+      resultados.sort((a, b) => (b.dataInicio || b.data || "").localeCompare(a.dataInicio || a.data || ""));
+
+      ultimoRelatorioResultados = resultados;
+
+      resultados.forEach(r => {
+
+          const periodo =
+            r.dataInicio && r.dataFim && r.dataInicio !== r.dataFim
+              ? `${r.dataInicio} a ${r.dataFim}`
+              : (r.dataInicio || r.data || "—");
+
+          let badgeClass = "badge-manutencao";
+          if (r.estado === "confirmada") badgeClass = "badge-confirmada";
+          if (r.estado === "cancelada") badgeClass = "badge-cancelada";
+
+          lista.innerHTML += `
+            <div class="item-lista">
+              <div class="item-topo">
+                <strong>${r.veiculoNome || "Veículo"}</strong>
+                <span class="badge ${badgeClass}">${r.estado || "pendente"}</span>
+              </div>
+              <div class="detalhes-item">
+                Condutor: ${r.condutorNome || "—"}<br>
+                Período: ${periodo}<br>
+                Requisitado por: ${r.funcionarioEmail || "—"}<br>
+                Observação: ${r.observacao || "—"}
+              </div>
+            </div>
+          `;
+
+        });
+
+      botaoExportar.style.display = "inline-flex";
+
+    } else {
+
+      // RELATÓRIO DE MANUTENÇÕES
+      const snap = await getDocs(collection(db, "manutencoes"));
+
+      const veiculosSnap = await getDocs(collection(db, "veiculos"));
+      const veiculosMap = {};
+
+      veiculosSnap.forEach(docSnap => {
+        const v = docSnap.data();
+        veiculosMap[docSnap.id] = `${v.marca || ""} ${v.modelo || ""} - ${v.matricula || ""}`.trim();
+      });
+
+      ultimoRelatorioVeiculosMap = veiculosMap;
+
+      const resultados = [];
+
+      snap.forEach(docSnap => {
+
+        const m = docSnap.data();
+        const dataRef = m.dataServico || "";
+
+        if (dataInicio && dataRef < dataInicio) return;
+        if (dataFim && dataRef > dataFim) return;
+        if (veiculoId && m.veiculoId !== veiculoId) return;
+        if (tipoServico && m.tipo !== tipoServico) return;
+
+        resultados.push(m);
+
+      });
+
+      resumo.textContent = `${resultados.length} registo(s) de manutenção encontrado(s).`;
+
+      if (resultados.length === 0) {
+        lista.innerHTML = "<p>Nenhum resultado para os filtros escolhidos.</p>";
+        return;
+      }
+
+      resultados.sort((a, b) => (b.dataServico || "").localeCompare(a.dataServico || ""));
+
+      ultimoRelatorioResultados = resultados;
+
+      resultados.forEach(m => {
+
+          lista.innerHTML += `
+            <div class="item-lista">
+              <div class="item-topo">
+                <strong>${m.tipo || "Serviço"}</strong>
+              </div>
+              <div class="detalhes-item">
+                Veículo: ${veiculosMap[m.veiculoId] || m.veiculoId || "—"}<br>
+                Data efetuada: ${m.dataServico || "—"}<br>
+                Próxima data: ${m.proximaData || "—"}<br>
+                Observações: ${m.observacoes || "—"}
+              </div>
+            </div>
+          `;
+
+        });
+
+      botaoExportar.style.display = "inline-flex";
+
+    }
+
+  } catch (error) {
+
+    console.error(error);
+    resumo.textContent = "Erro ao gerar relatório.";
+
+  }
+
+});
+
+let ultimoRelatorioFiltros = {};
+let ultimoRelatorioResultados = [];
+let ultimoRelatorioVeiculosMap = {};
+
+document.getElementById("exportarRelatorioPDF")?.addEventListener("click", () => {
+
+  if (!window.jspdf || ultimoRelatorioResultados.length === 0) {
+    alert("Gera primeiro o relatório antes de exportar.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  const margemEsquerda = 15;
+  let y = 20;
+
+  pdf.setFontSize(18);
+  pdf.setFont(undefined, "bold");
+  pdf.text("ASCRA Apúlia - Relatório", margemEsquerda, y);
+
+  y += 8;
+  pdf.setFontSize(11);
+  pdf.setFont(undefined, "normal");
+
+  const tipoTexto = ultimoRelatorioFiltros.tipoRelatorio === "manutencoes" ? "Manutenções" : "Requisições (Utilização)";
+  pdf.text(`Tipo: ${tipoTexto}`, margemEsquerda, y);
+
+  y += 6;
+
+  const periodoFiltro =
+    (ultimoRelatorioFiltros.dataInicio || "—") + " a " + (ultimoRelatorioFiltros.dataFim || "—");
+
+  pdf.text(`Período filtrado: ${periodoFiltro}`, margemEsquerda, y);
+
+  y += 6;
+  pdf.text(`Gerado em: ${new Date().toLocaleString("pt-PT")}`, margemEsquerda, y);
+
+  y += 4;
+  pdf.setDrawColor(180);
+  pdf.line(margemEsquerda, y, 195, y);
+  y += 8;
+
+  pdf.setFontSize(12);
+  pdf.setFont(undefined, "bold");
+  pdf.text(`Total de registos: ${ultimoRelatorioResultados.length}`, margemEsquerda, y);
+  y += 10;
+
+  pdf.setFontSize(10);
+
+  ultimoRelatorioResultados.forEach((item, index) => {
+
+    if (y > 270) {
+      pdf.addPage();
+      y = 20;
+    }
+
+    pdf.setFont(undefined, "bold");
+
+    if (ultimoRelatorioFiltros.tipoRelatorio === "manutencoes") {
+
+      pdf.text(`${index + 1}. ${item.tipo || "Serviço"}`, margemEsquerda, y);
+      y += 5;
+
+      pdf.setFont(undefined, "normal");
+      pdf.text(`   Veículo: ${ultimoRelatorioVeiculosMap[item.veiculoId] || item.veiculoId || "—"}`, margemEsquerda, y);
+      y += 5;
+      pdf.text(`   Data efetuada: ${item.dataServico || "—"}    Próxima data: ${item.proximaData || "—"}`, margemEsquerda, y);
+      y += 5;
+      pdf.text(`   Observações: ${(item.observacoes || "—").substring(0, 80)}`, margemEsquerda, y);
+      y += 8;
+
+    } else {
+
+      const periodo =
+        item.dataInicio && item.dataFim && item.dataInicio !== item.dataFim
+          ? `${item.dataInicio} a ${item.dataFim}`
+          : (item.dataInicio || item.data || "—");
+
+      pdf.text(`${index + 1}. ${item.veiculoNome || "Veículo"} — ${item.estado || "pendente"}`, margemEsquerda, y);
+      y += 5;
+
+      pdf.setFont(undefined, "normal");
+      pdf.text(`   Condutor: ${item.condutorNome || "—"}    Período: ${periodo}`, margemEsquerda, y);
+      y += 5;
+      pdf.text(`   Requisitado por: ${item.funcionarioEmail || "—"}`, margemEsquerda, y);
+      y += 5;
+      pdf.text(`   Observação: ${(item.observacao || "—").substring(0, 80)}`, margemEsquerda, y);
+      y += 8;
+
+    }
+
+  });
+
+  const nomeFicheiro = `relatorio-ascra-${tipoTexto.toLowerCase().replace(/[^a-z]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
+
+  pdf.save(nomeFicheiro);
+
+});
+
+// =========================
+// AJUDA / MANUAL - TROCA DE SEPARADORES
+// =========================
+document.querySelectorAll(".ajuda-tab-btn").forEach(botao => {
+
+  botao.addEventListener("click", () => {
+
+    document.querySelectorAll(".ajuda-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".ajuda-conteudo").forEach(c => c.classList.remove("active"));
+
+    botao.classList.add("active");
+
+    const conteudo = document.getElementById(`ajuda-${botao.dataset.ajuda}`);
+
+    if (conteudo) conteudo.classList.add("active");
+
+  });
+
 });

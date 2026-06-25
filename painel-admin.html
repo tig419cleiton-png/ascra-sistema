@@ -5,11 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Painel do Administrador - ASCRA</title>
+  <title>Painel - ASCRA</title>
 
   <link rel="stylesheet" href="style.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 </head>
 
@@ -44,6 +45,22 @@
           Inspeções
         </button>
 
+        <button class="menu-btn" data-section="relatorios">
+          Relatórios
+        </button>
+
+        <button class="menu-btn" data-section="ajuda">
+          Ajuda
+        </button>
+
+        <button class="menu-btn admin-only" data-section="utilizadores">
+          Utilizadores
+        </button>
+
+        <button class="menu-btn admin-only" data-section="configuracoes">
+          Configurações
+        </button>
+
         <button id="logoutAdmin">
           Sair
         </button>
@@ -58,7 +75,7 @@
       <!-- HEADER -->
       <header>
 
-        <h1>
+        <h1 id="tituloPainel">
           Painel do Administrador
         </h1>
 
@@ -135,7 +152,7 @@
 
           </div>
 
-          <div class="card-info">
+          <div class="card-info card-clicavel" data-secao="requisicoes">
 
             <h3>
               Requisições pendentes
@@ -194,6 +211,41 @@
               maxlength="8"
             >
 
+            <label>Data da matrícula</label>
+            <input
+              id="dataMatriculaVeiculo"
+              type="date"
+            >
+
+            <label>Quilometragem atual (km)</label>
+            <input
+              id="quilometragemVeiculo"
+              type="number"
+              min="0"
+              placeholder="Ex: 45000"
+            >
+
+            <label class="opcao-checkbox">
+              <input
+                type="checkbox"
+                id="gerarAlertasVeiculo"
+                checked
+              >
+              Gerar alertas para este veículo
+            </label>
+
+            <div id="configAlertasVeiculo">
+
+              <label>Antecedência do alerta (dias)</label>
+              <input
+                id="diasAlertaVeiculo"
+                type="number"
+                min="1"
+                value="30"
+              >
+
+            </div>
+
             <p id="mensagemVeiculo" class="mensagem-erro"></p>
 
             <button id="guardarVeiculo">
@@ -244,6 +296,26 @@
               id="validadeCondutor"
               type="date"
             >
+
+            <label>Categoria da carta</label>
+            <select id="categoriaCondutor">
+              <option value="">Selecionar categoria</option>
+              <option value="AM">AM</option>
+              <option value="A1">A1</option>
+              <option value="A2">A2</option>
+              <option value="A">A</option>
+              <option value="B1">B1</option>
+              <option value="B">B</option>
+              <option value="BE">BE</option>
+              <option value="C1">C1</option>
+              <option value="C1E">C1E</option>
+              <option value="C">C</option>
+              <option value="CE">CE</option>
+              <option value="D1">D1</option>
+              <option value="D1E">D1E</option>
+              <option value="D">D</option>
+              <option value="DE">DE</option>
+            </select>
 
             <label>Telefone</label>
             <input
@@ -378,11 +450,328 @@
 
       </section>
 
+      <!-- RELATÓRIOS -->
+      <section id="relatorios" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Relatórios
+          </h2>
+
+          <p>
+            Consulta o histórico de utilização e manutenção da frota, filtrado por veículo, condutor ou tipo de serviço.
+          </p>
+
+          <div class="form-admin" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:800px;">
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label>Data inicial</label>
+              <input id="relatorioDataInicio" type="date">
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label>Data final</label>
+              <input id="relatorioDataFim" type="date">
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label>Veículo</label>
+              <select id="relatorioVeiculo">
+                <option value="">Todos os veículos</option>
+              </select>
+            </div>
+
+            <div id="filtroCondutorWrapper" style="display:flex; flex-direction:column; gap:8px;">
+              <label>Condutor</label>
+              <select id="relatorioCondutor">
+                <option value="">Todos os condutores</option>
+              </select>
+            </div>
+
+            <div id="filtroServicoWrapper" style="display:flex; flex-direction:column; gap:8px;">
+              <label>Tipo de serviço</label>
+              <select id="relatorioServico">
+                <option value="">Todos os serviços</option>
+                <option value="Inspeção">Inspeção</option>
+                <option value="Mudança de óleo">Mudança de óleo</option>
+                <option value="Filtros">Filtros</option>
+                <option value="Pneus">Pneus</option>
+                <option value="Travões">Travões</option>
+                <option value="Seguro">Seguro</option>
+                <option value="Acidente / Avaria">Acidente / Avaria</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label>Tipo de relatório</label>
+              <select id="relatorioTipo">
+                <option value="requisicoes">Requisições (utilização)</option>
+                <option value="manutencoes">Manutenções</option>
+              </select>
+            </div>
+
+          </div>
+
+          <button id="gerarRelatorio" class="btn-add" style="margin-top:20px;">
+            Gerar relatório
+          </button>
+
+          <button id="exportarRelatorioPDF" class="btn-add" style="margin-top:20px; margin-left:10px; background:#16a34a; display:none;">
+            Exportar PDF
+          </button>
+
+          <p id="resumoRelatorio" style="margin-top:15px; font-weight:bold; color:#0b1633;"></p>
+
+          <div id="listaRelatorio" class="lista-dados"></div>
+
+        </div>
+
+      </section>
+
+      <!-- AJUDA / MANUAL -->
+      <section id="ajuda" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Ajuda e Manual de Utilização
+          </h2>
+
+          <p>
+            Escolhe uma área para ver como funciona.
+          </p>
+
+          <div class="ajuda-tabs">
+            <button class="ajuda-tab-btn active" data-ajuda="veiculos">Veículos</button>
+            <button class="ajuda-tab-btn" data-ajuda="requisicoes">Requisições</button>
+            <button class="ajuda-tab-btn" data-ajuda="alertas">Alertas</button>
+            <button class="ajuda-tab-btn" data-ajuda="relatorios">Relatórios</button>
+            <button class="ajuda-tab-btn admin-only" data-ajuda="utilizadores">Utilizadores</button>
+            <button class="ajuda-tab-btn admin-only" data-ajuda="configuracoes">Configurações</button>
+          </div>
+
+          <!-- VEÍCULOS -->
+          <div class="ajuda-conteudo active" id="ajuda-veiculos">
+
+            <h3>Gestão de Veículos</h3>
+
+            <p>Na secção <strong>Veículos</strong> podes:</p>
+
+            <ul>
+              <li>Clicar em <strong>"+ Adicionar Veículo"</strong> para registar um veículo novo (marca, modelo, matrícula, data da matrícula, quilometragem).</li>
+              <li>Ativar ou desativar a geração de <strong>alertas automáticos</strong> para esse veículo, e definir com quantos dias de antecedência queres ser avisado.</li>
+              <li>Atualizar a <strong>quilometragem atual</strong> sempre que o veículo for utilizado, através do botão "Atualizar km".</li>
+              <li>Registar <strong>manutenções e inspeções</strong> (tipo de serviço, data efetuada, próxima data, observações) e anexar documentos como faturas ou comprovativos.</li>
+              <li>Consultar o histórico de manutenções de cada veículo, com indicação visual (verde/amarelo/vermelho) do estado de cada uma.</li>
+            </ul>
+
+          </div>
+
+          <!-- REQUISIÇÕES -->
+          <div class="ajuda-conteudo" id="ajuda-requisicoes">
+
+            <h3>Requisições de Veículos</h3>
+
+            <p><strong>Como condutor:</strong></p>
+
+            <ul>
+              <li>Escolhe se queres pesquisar primeiro <strong>por data</strong> (vês os veículos livres nessas datas) ou primeiro <strong>por veículo</strong> (e confirmas se está livre).</li>
+              <li>Define a data de início e de fim — podes requisitar para vários dias seguidos.</li>
+              <li>Clica em "Ver disponibilidade" para confirmar antes de submeter.</li>
+              <li>Escolhe o veículo, o condutor responsável e escreve uma observação/motivo.</li>
+              <li>Podes cancelar uma requisição própria a qualquer momento, indicando o motivo — o sistema avisa automaticamente quem fez a requisição por email.</li>
+            </ul>
+
+            <p><strong>Como administrador/motorista:</strong></p>
+
+            <ul>
+              <li>Na secção "Requisições", podes ver todas as requisições, confirmar as pendentes (✔) ou cancelar (✖, com motivo obrigatório).</li>
+              <li>Podes também criar requisições diretamente a partir do painel.</li>
+            </ul>
+
+          </div>
+
+          <!-- ALERTAS -->
+          <div class="ajuda-conteudo" id="ajuda-alertas">
+
+            <h3>Painel de Alertas</h3>
+
+            <p>No <strong>Dashboard</strong>, o painel de alertas mostra automaticamente:</p>
+
+            <ul>
+              <li>Manutenções e inspeções a expirar ou já expiradas.</li>
+              <li>Cartas de condução de condutores a expirar.</li>
+              <li>Requisições que ainda não foram validadas.</li>
+            </ul>
+
+            <p>Os alertas <strong>vermelhos</strong> indicam algo já expirado, e os <strong>amarelos</strong> indicam que se aproxima a data limite. Clicando num alerta, és levado diretamente à secção correspondente para resolveres a situação.</p>
+
+          </div>
+
+          <!-- RELATÓRIOS -->
+          <div class="ajuda-conteudo" id="ajuda-relatorios">
+
+            <h3>Relatórios</h3>
+
+            <p>Na secção <strong>Relatórios</strong> podes consultar o histórico da frota com filtros:</p>
+
+            <ul>
+              <li><strong>Requisições (utilização):</strong> filtra por data, veículo e/ou condutor.</li>
+              <li><strong>Manutenções:</strong> filtra por data, veículo e/ou tipo de serviço.</li>
+            </ul>
+
+            <p>Depois de gerar o relatório, podes clicar em <strong>"Exportar PDF"</strong> para descarregar um documento com todos os resultados, pronto para imprimir ou enviar.</p>
+
+          </div>
+
+          <!-- UTILIZADORES -->
+          <div class="ajuda-conteudo admin-only" id="ajuda-utilizadores">
+
+            <h3>Gestão de Utilizadores</h3>
+
+            <p>Apenas o <strong>Administrador</strong> pode criar novas contas de acesso. Na secção "Utilizadores":</p>
+
+            <ul>
+              <li>Clica em "+ Adicionar Utilizador", define o email, palavra-passe e tipo de conta.</li>
+              <li><strong>Motorista:</strong> acede ao painel com dashboard e pode inserir veículos, manutenções e condutores, mas não vê Utilizadores nem Configurações.</li>
+              <li><strong>Condutor geral:</strong> acede apenas à área de requisições, de forma simplificada.</li>
+            </ul>
+
+          </div>
+
+          <!-- CONFIGURAÇÕES -->
+          <div class="ajuda-conteudo admin-only" id="ajuda-configuracoes">
+
+            <h3>Configurações Gerais</h3>
+
+            <p>Na secção <strong>Configurações</strong>, o administrador define os valores padrão da aplicação:</p>
+
+            <ul>
+              <li>Se os veículos novos devem gerar alertas automaticamente.</li>
+              <li>Com quantos dias de antecedência esses alertas devem avisar.</li>
+              <li>Se as requisições feitas pelos condutores precisam de validação do administrador antes de ficarem confirmadas.</li>
+            </ul>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- UTILIZADORES (SÓ ADMIN) -->
+      <section id="utilizadores" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Utilizadores
+          </h2>
+
+          <p>
+            Cria contas de acesso para Motoristas e Condutores. Apenas o Administrador pode criar contas.
+          </p>
+
+          <button class="btn-add" id="abrirFormUtilizador">
+            + Adicionar Utilizador
+          </button>
+
+          <div
+            id="formUtilizador"
+            class="form-admin"
+            style="display:none;"
+          >
+
+            <label>Email</label>
+            <input id="emailUtilizador" type="email">
+
+            <label>Palavra-passe (mínimo 6 caracteres)</label>
+            <input id="passwordUtilizador" type="password">
+
+            <label>Tipo de conta</label>
+            <select id="tipoUtilizador">
+              <option value="">Selecionar tipo</option>
+              <option value="motorista">Motorista</option>
+              <option value="condutor">Condutor geral</option>
+            </select>
+
+            <p id="mensagemUtilizador" class="mensagem-erro"></p>
+
+            <button id="guardarUtilizador">
+              Criar conta
+            </button>
+
+          </div>
+
+          <div id="listaUtilizadores" class="lista-dados">
+            A carregar utilizadores...
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- CONFIGURAÇÕES (SÓ ADMIN) -->
+      <section id="configuracoes" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>
+            Configurações Gerais
+          </h2>
+
+          <p>
+            Estas definições aplicam-se como padrão para novos veículos e requisições.
+          </p>
+
+          <div class="form-admin" style="display:flex; max-width:500px;">
+
+            <label class="opcao-checkbox">
+              <input
+                type="checkbox"
+                id="cfgGerarAlertasDefeito"
+              >
+              Gerar alertas por defeito para novos veículos
+            </label>
+
+            <label>Antecedência do alerta por defeito (dias)</label>
+            <input
+              id="cfgDiasAlertaDefeito"
+              type="number"
+              min="1"
+            >
+
+            <label class="opcao-checkbox">
+              <input
+                type="checkbox"
+                id="cfgRequisicoesValidacao"
+              >
+              As requisições necessitam de validação do administrador
+            </label>
+
+            <p id="mensagemConfiguracoes" class="mensagem-erro"></p>
+
+            <button id="guardarConfiguracoes">
+              Guardar configurações
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
     </main>
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="email-config.js"></script>
+
   <script type="module" src="painel-admin.js"></script>
+  <script type="module" src="utilizadores.js"></script>
+  <script type="module" src="configuracoes.js"></script>
 
 </body>
 </html>

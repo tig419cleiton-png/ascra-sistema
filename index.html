@@ -1,18 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <!-- BARRA AZUL -->
-<header class="topo">
 
-  <div class="barra-esquerda">
-    ASCRA Apúlia
-  </div>
-
-  <div class="barra-direita">
-    Sistema Interno
-  </div>
-
-</header>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -24,9 +13,23 @@
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
   >
+
 </head>
 
 <body>
+
+  <!-- BARRA AZUL -->
+  <header class="topo">
+
+    <div class="barra-esquerda">
+      ASCRA Apúlia
+    </div>
+
+    <div class="barra-direita">
+      Sistema Interno
+    </div>
+
+  </header>
 
   <!-- HERO -->
   <section class="hero">
@@ -69,15 +72,43 @@
 
       </div>
 
-      <!-- BOTÕES -->
+      <!-- LOGIN -->
+      <div class="grupo-input">
+
+        <label>Email</label>
+
+        <input
+          type="email"
+          id="email"
+          placeholder="Digite o seu email"
+          autocomplete="off"
+        >
+
+      </div>
+
+      <div class="grupo-input">
+
+        <label>Palavra-passe</label>
+
+        <input
+          type="password"
+          id="password"
+          placeholder="Digite a sua palavra-passe"
+          autocomplete="new-password"
+        >
+
+      </div>
+
+      <p id="mensagemErro" class="mensagem-erro"></p>
+
       <div class="botoes-acesso">
 
-        <a href="admin.html" class="botao botao-admin">
-          Administrador
-        </a>
+        <button id="entrar" class="botao botao-admin" type="button">
+          Entrar
+        </button>
 
-        <a href="funcionario.html" class="botao botao-funcionario">
-          Funcionários
+        <a href="#" id="reset" class="botao botao-funcionario">
+          Esqueceu-se da palavra-passe?
         </a>
 
       </div>
@@ -142,6 +173,9 @@
     setInterval(trocarImagem, 4000);
 
   </script>
+
+  <!-- LOGIN -->
+  <script type="module" src="login.js"></script>
 
 </body>
 </html>

@@ -2,7 +2,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 
 import {
   getAuth,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
@@ -32,11 +34,38 @@ const password = document.getElementById("password");
 
 const entrar = document.getElementById("entrar");
 
+const reset = document.getElementById("reset");
+
 const mensagemErro = document.getElementById("mensagemErro");
 
-// LIMPAR PASSWORD AO ABRIR
+// =========================
+// REDIRECIONAMENTO POR TIPO
+// =========================
+function redirecionarPorTipo(tipo) {
+
+  if (tipo === "admin") {
+    window.location.href = "painel-admin.html";
+    return;
+  }
+
+  if (tipo === "motorista") {
+    window.location.href = "painel-admin.html";
+    return;
+  }
+
+  if (tipo === "condutor") {
+    window.location.href = "painel-condutor.html";
+    return;
+  }
+
+  mostrarErro("Tipo de utilizador desconhecido. Contacte o administrador.");
+
+}
+
+// LIMPAR CAMPOS AO ABRIR
 window.onload = () => {
 
+  email.value = "";
   password.value = "";
 
 };
@@ -54,8 +83,6 @@ entrar.addEventListener("click", async () => {
   const emailValor = email.value.trim();
 
   const passwordValor = password.value.trim();
-
-  // VALIDAÇÕES
 
   if (!emailValor || !passwordValor) {
 
@@ -80,8 +107,6 @@ entrar.addEventListener("click", async () => {
 
   try {
 
-    // LOGIN FIREBASE
-
     const userCredential = await signInWithEmailAndPassword(
       auth,
       emailValor,
@@ -90,31 +115,18 @@ entrar.addEventListener("click", async () => {
 
     const user = userCredential.user;
 
-    // BUSCAR DADOS
-
     const snap = await getDoc(doc(db, "users", user.uid));
 
     if (!snap.exists()) {
 
-      mostrarErro("Conta não encontrada.");
+      mostrarErro("Conta sem perfil definido. Contacte o administrador.");
 
       return;
     }
 
     const dados = snap.data();
 
-    // VERIFICAR ADMIN
-
-    if (dados.tipo !== "admin") {
-
-      mostrarErro("Acesso negado.");
-
-      return;
-    }
-
-    // LOGIN CERTO
-
-    window.location.href = "painel-admin.html";
+    redirecionarPorTipo(dados.tipo);
 
   }
 
@@ -127,13 +139,13 @@ entrar.addEventListener("click", async () => {
       error.code === "auth/invalid-credential"
     ) {
 
-      mostrarErro("Palavra-passe incorreta.");
+      mostrarErro("Email ou palavra-passe incorretos.");
 
     }
 
     else if (error.code === "auth/user-not-found") {
 
-      mostrarErro("Administrador não encontrado.");
+      mostrarErro("Utilizador não encontrado.");
 
     }
 
@@ -143,11 +155,88 @@ entrar.addEventListener("click", async () => {
 
     }
 
-    else {
+    else if (error.code === "auth/too-many-requests") {
 
-      mostrarErro("Erro ao entrar.");
+      mostrarErro("Demasiadas tentativas. Tente novamente mais tarde.");
 
     }
+
+    else {
+
+      mostrarErro("Erro ao entrar. Tente novamente.");
+
+    }
+
+  }
+
+});
+
+// =========================
+// RECUPERAR PALAVRA-PASSE
+// =========================
+reset.addEventListener("click", async (e) => {
+
+  e.preventDefault();
+
+  mensagemErro.textContent = "";
+
+  const emailValor = email.value.trim();
+
+  if (!emailValor) {
+
+    mostrarErro("Digite o seu email para recuperar a palavra-passe.");
+
+    return;
+  }
+
+  try {
+
+    await sendPasswordResetEmail(auth, emailValor);
+
+    mostrarErro("");
+
+    alert("Email de recuperação enviado! Verifique a sua caixa de entrada.");
+
+  }
+
+  catch (error) {
+
+    if (error.code === "auth/invalid-email") {
+
+      mostrarErro("Email inválido.");
+
+    }
+
+    else if (error.code === "auth/user-not-found") {
+
+      mostrarErro("Email não encontrado.");
+
+    }
+
+    else {
+
+      mostrarErro("Erro ao enviar email de recuperação.");
+
+    }
+
+  }
+
+});
+
+// =========================
+// SE JÁ ESTIVER LOGADO, REDIRECIONA
+// =========================
+onAuthStateChanged(auth, async (user) => {
+
+  if (!user) {
+    return;
+  }
+
+  const snap = await getDoc(doc(db, "users", user.uid));
+
+  if (snap.exists()) {
+
+    redirecionarPorTipo(snap.data().tipo);
 
   }
 

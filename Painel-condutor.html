@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Área do Condutor - ASCRA</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+  >
+
+</head>
+
+<body class="pagina-login">
+
+  <!-- ÁREA CONDUTOR -->
+  <div class="caixa-login requisicao-box" id="areaCondutor">
+
+    <div class="lado-esquerdo">
+
+      <h1>
+        Requisição de Veículo
+      </h1>
+
+      <p id="condutorInfo" style="margin-bottom: 20px; color:#64748b;"></p>
+
+      <!-- MODO DE PESQUISA -->
+      <div class="grupo-input">
+
+        <label>Como queres pesquisar?</label>
+
+        <select id="modoFiltro">
+          <option value="data">Primeiro escolher a data, depois ver veículos disponíveis</option>
+          <option value="veiculo">Primeiro escolher o veículo, depois ver a disponibilidade</option>
+        </select>
+
+      </div>
+
+      <!-- DATAS -->
+      <div class="grupo-input">
+
+        <label>Data de início</label>
+
+        <input type="date" id="dataInicioRequisicao">
+
+      </div>
+
+      <div class="grupo-input">
+
+        <label>Data de fim (deixa igual à data de início se for só 1 dia)</label>
+
+        <input type="date" id="dataFimRequisicao">
+
+      </div>
+
+      <div class="grupo-input">
+
+        <button
+          id="verDisponibilidade"
+          class="btn-azul"
+          type="button"
+          style="width:100%;"
+        >
+          Ver disponibilidade
+        </button>
+
+      </div>
+
+      <!-- VEÍCULO -->
+      <div class="grupo-input">
+
+        <label>Veículo</label>
+
+        <select id="selectVeiculo">
+          <option value="">
+            Primeiro verifica a disponibilidade acima
+          </option>
+        </select>
+
+      </div>
+
+      <!-- CONDUTOR -->
+      <div class="grupo-input">
+
+        <label>Condutor</label>
+
+        <select id="selectCondutor">
+          <option value="">
+            Selecionar condutor
+          </option>
+        </select>
+
+      </div>
+
+      <!-- OBSERVAÇÃO -->
+      <div class="grupo-input">
+
+        <label>Observação</label>
+
+        <textarea
+          id="observacaoRequisicao"
+          placeholder="Motivo / observação"
+        ></textarea>
+
+      </div>
+
+      <p
+        id="mensagemRequisicao"
+        class="mensagem-erro"
+      ></p>
+
+      <!-- BOTÕES -->
+      <div class="botoes-login">
+
+        <button
+          id="enviarRequisicao"
+          class="btn-verde"
+        >
+          Enviar Requisição
+        </button>
+
+        <button
+          id="sairAreaCondutor"
+          class="btn-vermelho"
+        >
+          Sair
+        </button>
+
+      </div>
+
+      <!-- HISTÓRICO -->
+      <h2 style="margin-top:30px;">
+        As minhas requisições
+      </h2>
+
+      <div id="listaMinhasRequisicoes" class="lista-dados">
+        A carregar...
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL CANCELAMENTO -->
+  <div id="modalCancelamento" class="modal-overlay" style="display:none;">
+
+    <div class="modal-caixa">
+
+      <h2>Cancelar Requisição</h2>
+
+      <p>Indica o motivo do cancelamento. O requisitante vai receber um email com esta informação.</p>
+
+      <div class="grupo-input">
+
+        <label>Motivo do cancelamento</label>
+
+        <textarea id="motivoCancelamento" placeholder="Explica o motivo do cancelamento"></textarea>
+
+      </div>
+
+      <p id="mensagemCancelamento" class="mensagem-erro"></p>
+
+      <div class="botoes-login">
+
+        <button id="confirmarCancelamento" class="btn-vermelho">
+          Confirmar cancelamento
+        </button>
+
+        <button id="fecharModalCancelamento" class="btn-azul">
+          Voltar
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- EMAILJS: notificação de cancelamento de requisição -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="email-config.js"></script>
+
+  <script type="module" src="painel-condutor.js"></script>
+
+</body>
+</html>
