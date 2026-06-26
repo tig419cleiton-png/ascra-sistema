@@ -497,32 +497,31 @@ async function carregarCondutores() {
 // =========================
 // SELECTS DA REQUISIÇÃO ADMIN
 // =========================
+let todosVeiculosRequisicaoAdmin = [];
+let todasRequisicoesAtivasAdmin = [];
+
 async function carregarSelectsRequisicaoAdmin() {
   const selectVeiculo = document.getElementById("veiculoRequisicaoAdmin");
   const selectCondutor = document.getElementById("condutorRequisicaoAdmin");
 
   if (!selectVeiculo || !selectCondutor) return;
 
-  selectVeiculo.innerHTML = `<option value="">Selecionar veículo</option>`;
   selectCondutor.innerHTML = `<option value="">Selecionar condutor</option>`;
 
   const veiculosSnap = await getDocs(collection(db, "veiculos"));
   const condutoresSnap = await getDocs(collection(db, "condutores"));
 
+  todosVeiculosRequisicaoAdmin = [];
+
   veiculosSnap.forEach(docSnap => {
     const v = docSnap.data();
 
     if (v.estado === "ativo") {
-      const nome = `${v.marca || "Sem marca"} ${v.modelo || ""}`.trim();
-      const matricula = v.matricula || "Sem matrícula";
-
-      selectVeiculo.innerHTML += `
-        <option value="${docSnap.id}">
-          ${nome} - ${matricula}
-        </option>
-      `;
+      todosVeiculosRequisicaoAdmin.push({ id: docSnap.id, ...v });
     }
   });
+
+  preencherSelectVeiculoAdmin(todosVeiculosRequisicaoAdmin);
 
   condutoresSnap.forEach(docSnap => {
     const c = docSnap.data();
@@ -536,6 +535,136 @@ async function carregarSelectsRequisicaoAdmin() {
     }
   });
 }
+
+function preencherSelectVeiculoAdmin(lista) {
+  const selectVeiculo = document.getElementById("veiculoRequisicaoAdmin");
+
+  if (lista.length === 0) {
+    selectVeiculo.innerHTML = `<option value="">Nenhum veículo disponível nas datas escolhidas</option>`;
+    return;
+  }
+
+  selectVeiculo.innerHTML = `<option value="">Selecionar veículo</option>`;
+
+  lista.forEach(v => {
+    const nome = `${v.marca || "Sem marca"} ${v.modelo || ""}`.trim();
+    const matricula = v.matricula || "Sem matrícula";
+
+    selectVeiculo.innerHTML += `
+      <option value="${v.id}">
+        ${nome} - ${matricula}
+      </option>
+    `;
+  });
+}
+
+function listarDiasAdmin(inicio, fim) {
+  const dias = [];
+
+  let atual = new Date(inicio + "T00:00:00");
+  const ultimo = new Date(fim + "T00:00:00");
+
+  while (atual <= ultimo) {
+    dias.push(atual.toISOString().split("T")[0]);
+    atual.setDate(atual.getDate() + 1);
+  }
+
+  return dias;
+}
+
+function veiculoTemConflitoAdmin(veiculoId, diasPedidos) {
+  return todasRequisicoesAtivasAdmin.some(r => {
+    if (r.veiculoId !== veiculoId) return false;
+
+    const diasOcupados = r.dias || (r.data ? [r.data] : []);
+
+    return diasOcupados.some(d => diasPedidos.includes(d));
+  });
+}
+
+async function carregarRequisicoesAtivasAdmin() {
+  const snap = await getDocs(collection(db, "requisicoes"));
+
+  todasRequisicoesAtivasAdmin = [];
+
+  snap.forEach(d => {
+    const r = d.data();
+
+    if (r.estado !== "cancelada") {
+      todasRequisicoesAtivasAdmin.push(r);
+    }
+  });
+}
+
+document.getElementById("verDisponibilidadeAdmin")?.addEventListener("click", async () => {
+
+  const mensagem = document.getElementById("mensagemRequisicaoAdmin");
+  const modoFiltro = document.getElementById("modoFiltroAdmin").value;
+  const inicio = document.getElementById("dataInicioRequisicaoAdmin").value;
+  const fim = document.getElementById("dataFimRequisicaoAdmin").value || inicio;
+
+  mensagem.textContent = "";
+
+  if (!inicio) {
+    mensagem.textContent = "Seleciona pelo menos a data de início.";
+    return;
+  }
+
+  if (fim < inicio) {
+    mensagem.textContent = "A data de fim não pode ser antes da data de início.";
+    return;
+  }
+
+  await carregarRequisicoesAtivasAdmin();
+
+  const diasPedidos = listarDiasAdmin(inicio, fim);
+
+  if (modoFiltro === "data") {
+
+    const disponiveis = todosVeiculosRequisicaoAdmin.filter(
+      v => !veiculoTemConflitoAdmin(v.id, diasPedidos)
+    );
+
+    preencherSelectVeiculoAdmin(disponiveis);
+
+    mensagem.style.color = "green";
+    mensagem.textContent = `${disponiveis.length} veículo(s) disponível(eis) nas datas escolhidas.`;
+
+  } else {
+
+    preencherSelectVeiculoAdmin(todosVeiculosRequisicaoAdmin);
+
+    mensagem.style.color = "green";
+    mensagem.textContent = "Seleciona um veículo para veres se está livre nas datas escolhidas.";
+
+  }
+
+});
+
+document.getElementById("veiculoRequisicaoAdmin")?.addEventListener("change", () => {
+
+  const modoFiltro = document.getElementById("modoFiltroAdmin").value;
+
+  if (modoFiltro !== "veiculo") return;
+
+  const mensagem = document.getElementById("mensagemRequisicaoAdmin");
+  const inicio = document.getElementById("dataInicioRequisicaoAdmin").value;
+  const fim = document.getElementById("dataFimRequisicaoAdmin").value || inicio;
+  const veiculoId = document.getElementById("veiculoRequisicaoAdmin").value;
+
+  if (!inicio || !veiculoId) return;
+
+  const diasPedidos = listarDiasAdmin(inicio, fim);
+
+  if (veiculoTemConflitoAdmin(veiculoId, diasPedidos)) {
+    mensagem.style.color = "red";
+    mensagem.textContent = "⚠ Este veículo já está requisitado numa das datas escolhidas.";
+  } else {
+    mensagem.style.color = "green";
+    mensagem.textContent = "Veículo disponível nas datas escolhidas!";
+  }
+
+});
 
 // =========================
 // FORM VEÍCULO
@@ -706,7 +835,8 @@ if (guardarRequisicaoAdmin) {
   guardarRequisicaoAdmin.onclick = async () => {
     const veiculoSelect = document.getElementById("veiculoRequisicaoAdmin");
     const condutorSelect = document.getElementById("condutorRequisicaoAdmin");
-    const data = document.getElementById("dataRequisicaoAdmin").value;
+    const inicio = document.getElementById("dataInicioRequisicaoAdmin").value;
+    const fim = document.getElementById("dataFimRequisicaoAdmin").value || inicio;
     const observacao = document.getElementById("observacaoRequisicaoAdmin").value.trim();
     const mensagem = document.getElementById("mensagemRequisicaoAdmin");
 
@@ -714,6 +844,16 @@ if (guardarRequisicaoAdmin) {
 
     const veiculoId = veiculoSelect.value;
     const condutorId = condutorSelect.value;
+
+    if (!inicio) {
+      mensagem.textContent = "Seleciona a data de início.";
+      return;
+    }
+
+    if (fim < inicio) {
+      mensagem.textContent = "A data de fim não pode ser antes da data de início.";
+      return;
+    }
 
     if (!veiculoId) {
       mensagem.textContent = "Seleciona um veículo.";
@@ -725,13 +865,17 @@ if (guardarRequisicaoAdmin) {
       return;
     }
 
-    if (!data) {
-      mensagem.textContent = "Seleciona a data da requisição.";
+    if (!observacao) {
+      mensagem.textContent = "Escreve uma observação.";
       return;
     }
 
-    if (!observacao) {
-      mensagem.textContent = "Escreve uma observação.";
+    const diasPedidos = listarDiasAdmin(inicio, fim);
+
+    await carregarRequisicoesAtivasAdmin();
+
+    if (veiculoTemConflitoAdmin(veiculoId, diasPedidos)) {
+      mensagem.textContent = "Este veículo já está requisitado numa das datas escolhidas. Escolhe outras datas ou outro veículo.";
       return;
     }
 
@@ -746,7 +890,10 @@ if (guardarRequisicaoAdmin) {
       veiculoNome,
       condutorId,
       condutorNome,
-      data,
+      dataInicio: inicio,
+      dataFim: fim,
+      dias: diasPedidos,
+      data: inicio,
       observacao,
       estado: "confirmada",
       criadoEm: new Date().toISOString()
@@ -754,8 +901,10 @@ if (guardarRequisicaoAdmin) {
 
     veiculoSelect.value = "";
     condutorSelect.value = "";
-    document.getElementById("dataRequisicaoAdmin").value = "";
+    document.getElementById("dataInicioRequisicaoAdmin").value = "";
+    document.getElementById("dataFimRequisicaoAdmin").value = "";
     document.getElementById("observacaoRequisicaoAdmin").value = "";
+    mensagem.style.color = "";
     mensagem.textContent = "";
 
     document.getElementById("formRequisicaoAdmin").style.display = "none";

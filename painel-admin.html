@@ -360,6 +360,25 @@
             style="display:none;"
           >
 
+            <label>Como queres pesquisar?</label>
+
+            <select id="modoFiltroAdmin">
+              <option value="data">Primeiro escolher a data, depois ver veículos disponíveis</option>
+              <option value="veiculo">Primeiro escolher o veículo, depois ver a disponibilidade</option>
+            </select>
+
+            <label>Data de início</label>
+
+            <input type="date" id="dataInicioRequisicaoAdmin">
+
+            <label>Data de fim (deixa igual à data de início se for só 1 dia)</label>
+
+            <input type="date" id="dataFimRequisicaoAdmin">
+
+            <button id="verDisponibilidadeAdmin" type="button" style="background:#3563ff; color:white; border:none; border-radius:14px; padding:14px; font-size:16px; font-weight:700; cursor:pointer;">
+              Ver disponibilidade
+            </button>
+
             <label>
               Veículo
             </label>
@@ -367,7 +386,7 @@
             <select id="veiculoRequisicaoAdmin">
 
               <option value="">
-                Selecionar veículo
+                Primeiro verifica a disponibilidade acima
               </option>
 
             </select>
@@ -383,15 +402,6 @@
               </option>
 
             </select>
-
-            <label>
-              Data
-            </label>
-
-            <input
-              type="date"
-              id="dataRequisicaoAdmin"
-            >
 
             <label>
               Observação

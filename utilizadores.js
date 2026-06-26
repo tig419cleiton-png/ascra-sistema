@@ -1,9 +1,10 @@
-import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp, deleteApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
   getAuth,
   createUserWithEmailAndPassword,
-  signOut as signOutSecundario
+  signOut as signOutSecundario,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
@@ -24,8 +25,27 @@ const firebaseConfig = {
   appId: "1:217858974774:web:677b27add30eb58fa66497"
 };
 
-const appPrincipal = initializeApp(firebaseConfig, "principal-utilizadores");
+// IMPORTANTE: reutiliza a app já inicializada pelo painel-admin.js
+const appPrincipal = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const dbPrincipal = getFirestore(appPrincipal);
+const authPrincipal = getAuth(appPrincipal);
+
+// Só executa qualquer operação no Firestore depois de confirmarmos
+// que existe um utilizador autenticado (evita "Missing permissions"
+// causado por tentar ler/escrever antes do login confirmar)
+let utilizadorAutenticado = null;
+
+const prontoParaUsar = new Promise((resolve) => {
+
+  onAuthStateChanged(authPrincipal, (user) => {
+
+    utilizadorAutenticado = user;
+
+    if (user) resolve(user);
+
+  });
+
+});
 
 const abrirFormUtilizador = document.getElementById("abrirFormUtilizador");
 const formUtilizador = document.getElementById("formUtilizador");
@@ -80,6 +100,8 @@ if (guardarUtilizador) {
 
     guardarUtilizador.disabled = true;
     guardarUtilizador.textContent = "A criar...";
+
+    await prontoParaUsar;
 
     const appSecundario = initializeApp(firebaseConfig, "secundario-" + Date.now());
     const authSecundario = getAuth(appSecundario);
@@ -162,6 +184,8 @@ async function carregarUtilizadores() {
 
   try {
 
+    await prontoParaUsar;
+
     const snap = await getDocs(collection(dbPrincipal, "users"));
 
     if (snap.empty) {
@@ -233,6 +257,8 @@ document.addEventListener("click", async (e) => {
     return;
 
   }
+
+  await prontoParaUsar;
 
   await deleteDoc(doc(dbPrincipal, "users", delU.dataset.id));
 
