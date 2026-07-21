@@ -45,6 +45,10 @@
           Relatórios
         </button>
 
+        <button class="menu-btn" data-section="quilometros">
+          Quilómetros
+        </button>
+
         <button class="menu-btn" data-section="ajuda">
           Ajuda
         </button>
@@ -353,6 +357,14 @@
             + Nova Requisição
           </button>
 
+          <button
+            class="btn-add"
+            id="btnUtilSemReqAdmin"
+            style="background:#0f766e; margin-left:10px;"
+          >
+            + Utilização imediata (sem requisição prévia)
+          </button>
+
           <!-- FORM -->
           <div
             id="formRequisicaoAdmin"
@@ -514,6 +526,66 @@
           <p id="resumoRelatorio" style="margin-top:15px; font-weight:bold; color:#0b1633;"></p>
 
           <div id="listaRelatorio" class="lista-dados"></div>
+
+        </div>
+
+      </section>
+
+      <!-- QUILÓMETROS -->
+      <section id="quilometros" class="admin-section">
+
+        <div class="admin-card">
+
+          <h2>Histórico de Quilómetros</h2>
+
+          <p>Consulta o histórico de utilização por viatura e faz correções manuais se necessário.</p>
+
+          <div class="form-admin" style="display:flex; flex-direction:row; gap:15px; flex-wrap:wrap; align-items:flex-end; max-width:700px;">
+
+            <div style="flex:1; min-width:200px; display:flex; flex-direction:column; gap:8px;">
+              <label>Filtrar por veículo</label>
+              <select id="filtroVeiculoKm">
+                <option value="">Todos os veículos</option>
+              </select>
+            </div>
+
+            <button id="carregarHistoricoKm" style="background:#3563ff; color:white; border:none; border-radius:14px; padding:14px 20px; font-size:16px; font-weight:700; cursor:pointer; white-space:nowrap;">
+              Ver histórico
+            </button>
+
+          </div>
+
+          <div id="listaHistoricoKm" class="lista-dados" style="margin-top:20px;"></div>
+
+        </div>
+
+        <!-- CORREÇÃO MANUAL -->
+        <div class="admin-card" style="margin-top:20px;">
+
+          <h2>Correção Manual de Quilómetros</h2>
+
+          <p>Usa esta opção para corrigir valores incorretos. A alteração fica registada com data, utilizador e motivo.</p>
+
+          <div class="form-admin" style="max-width:500px;">
+
+            <label>Veículo</label>
+            <select id="veiculoCorrecaoKm">
+              <option value="">Selecionar veículo</option>
+            </select>
+
+            <label>Novo valor de quilómetros</label>
+            <input type="number" id="novoKmCorrecao" min="0" placeholder="Ex: 48500">
+
+            <label>Motivo da correção</label>
+            <textarea id="motivoCorrecaoKm" placeholder="Explica o motivo da correção"></textarea>
+
+            <p id="mensagemCorrecaoKm" class="mensagem-erro"></p>
+
+            <button id="guardarCorrecaoKm">
+              Guardar correção
+            </button>
+
+          </div>
 
         </div>
 
@@ -752,6 +824,109 @@
       </section>
 
     </main>
+
+  </div>
+
+  <!-- MODAL REGISTO DE UTILIZAÇÃO (ADMIN/MOTORISTA) -->
+  <div id="modalUtilizacaoAdmin" class="modal-overlay" style="display:none;">
+
+    <div class="modal-caixa">
+
+      <h2 id="tituloModalUtilizacaoAdmin">Registar Utilização</h2>
+
+      <p id="infoModalUtilizacaoAdmin" style="color:#64748b; margin-bottom:16px;"></p>
+
+      <div id="blocoKmInicialAdmin">
+
+        <div class="grupo-input">
+          <label>Quilómetros ao pegar na viatura</label>
+          <input type="number" id="kmInicialAdmin" placeholder="Ex: 45000" min="0">
+        </div>
+
+        <p id="mensagemUtilizacaoAdmin" class="mensagem-erro"></p>
+
+        <div class="botoes-login">
+          <button id="confirmarPegarAdmin" class="btn-verde">
+            Confirmar — Peguei na viatura
+          </button>
+          <button id="fecharModalUtilizacaoAdmin" class="btn-vermelho">
+            Cancelar
+          </button>
+        </div>
+
+      </div>
+
+      <div id="blocoKmFinalAdmin" style="display:none;">
+
+        <div class="grupo-input">
+          <label>Quilómetros ao devolver a viatura</label>
+          <input type="number" id="kmFinalAdmin" placeholder="Ex: 45250" min="0">
+        </div>
+
+        <p id="mensagemUtilizacaoAdmin2" class="mensagem-erro"></p>
+
+        <div class="botoes-login">
+          <button id="confirmarDevolverAdmin" class="btn-verde">
+            Confirmar — Devolvi a viatura
+          </button>
+          <button id="fecharModalUtilizacaoAdmin2" class="btn-vermelho">
+            Cancelar
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL UTILIZAÇÃO SEM REQUISIÇÃO (ADMIN) -->
+  <div id="modalUtilSemReqAdmin" class="modal-overlay" style="display:none;">
+
+    <div class="modal-caixa">
+
+      <h2>Registar Utilização Imediata</h2>
+
+      <p style="color:#64748b; margin-bottom:16px;">
+        A aplicação cria automaticamente um registo de utilização para esta viatura.
+      </p>
+
+      <div class="grupo-input">
+        <label>Veículo</label>
+        <select id="veiculoUtilSemReqAdmin">
+          <option value="">Selecionar veículo</option>
+        </select>
+      </div>
+
+      <div class="grupo-input">
+        <label>Condutor</label>
+        <select id="condutorUtilSemReqAdmin">
+          <option value="">Selecionar condutor</option>
+        </select>
+      </div>
+
+      <div class="grupo-input">
+        <label>Quilómetros atuais da viatura</label>
+        <input type="number" id="kmUtilSemReqAdmin" placeholder="Ex: 45000" min="0">
+      </div>
+
+      <div class="grupo-input">
+        <label>Observação / Motivo</label>
+        <textarea id="obsUtilSemReqAdmin" placeholder="Destino ou motivo da utilização"></textarea>
+      </div>
+
+      <p id="mensagemUtilSemReqAdmin" class="mensagem-erro"></p>
+
+      <div class="botoes-login">
+        <button id="confirmarUtilSemReqAdmin" class="btn-verde">
+          Confirmar — Pegar viatura
+        </button>
+        <button id="fecharUtilSemReqAdmin" class="btn-vermelho">
+          Cancelar
+        </button>
+      </div>
+
+    </div>
 
   </div>
 

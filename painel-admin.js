@@ -987,12 +987,25 @@ function ouvirRequisicoes() {
                 : (r.dataInicio || r.data || "—")
             }<br>
             Observação: ${r.observacao || "—"}
+            ${r.kmInicial !== undefined ? `<br>Km ao pegar: ${r.kmInicial.toLocaleString("pt-PT")} km` : ""}
+            ${r.kmFinal !== undefined ? `<br>Km ao devolver: ${r.kmFinal.toLocaleString("pt-PT")} km` : ""}
+            ${r.kmPercorridos !== undefined ? `<br><strong>Km percorridos: ${r.kmPercorridos.toLocaleString("pt-PT")} km</strong>` : ""}
             ${
               r.estado === "cancelada" && r.motivoCancelamento
                 ? `<br>Motivo do cancelamento: ${r.motivoCancelamento}`
                 : ""
             }
           </div>
+
+          ${
+            estado === "confirmada"
+              ? r.kmInicial === undefined
+                ? `<button class="btn-pegar-admin btn-verde" data-id="${id}" data-veiculo="${r.veiculoNome || ''}" data-km="${r.kmVeiculoAtual || 0}" style="margin-top:8px;">Pegar viatura</button>`
+                : r.kmFinal === undefined
+                  ? `<button class="btn-devolver-admin btn-azul" data-id="${id}" data-veiculo="${r.veiculoNome || ''}" data-km-inicial="${r.kmInicial}" style="margin-top:8px;">Devolver viatura</button>`
+                  : ""
+              : ""
+          }
 
         </div>
       `;
@@ -1709,3 +1722,334 @@ document.querySelectorAll(".ajuda-tab-btn").forEach(botao => {
   });
 
 });
+// =========================
+// QUILÓMETROS — HISTÓRICO E CORREÇÃO MANUAL
+// =========================
+async function carregarFiltroVeiculosKm() {
+
+  const selFiltro = document.getElementById("filtroVeiculoKm");
+  const selCorrecao = document.getElementById("veiculoCorrecaoKm");
+
+  if (!selFiltro || !selCorrecao) return;
+
+  selFiltro.innerHTML = `<option value="">Todos os veículos</option>`;
+  selCorrecao.innerHTML = `<option value="">Selecionar veículo</option>`;
+
+  const snap = await getDocs(collection(db, "veiculos"));
+
+  snap.forEach(docSnap => {
+    const v = docSnap.data();
+    const nome = `${v.marca || ""} ${v.modelo || ""} - ${v.matricula || ""}`.trim();
+
+    selFiltro.innerHTML += `<option value="${docSnap.id}">${nome}</option>`;
+    selCorrecao.innerHTML += `<option value="${docSnap.id}" data-km="${v.quilometragem || 0}">${nome} (${(v.quilometragem || 0).toLocaleString("pt-PT")} km)</option>`;
+  });
+
+}
+
+document.getElementById("carregarHistoricoKm")?.addEventListener("click", async () => {
+
+  const lista = document.getElementById("listaHistoricoKm");
+  const veiculoId = document.getElementById("filtroVeiculoKm").value;
+
+  lista.innerHTML = "A carregar...";
+
+  try {
+
+    const snap = await getDocs(collection(db, "historicoKm"));
+
+    const registos = [];
+
+    snap.forEach(docSnap => {
+      const h = docSnap.data();
+      if (!veiculoId || h.veiculoId === veiculoId) {
+        registos.push({ id: docSnap.id, ...h });
+      }
+    });
+
+    registos.sort((a, b) => (b.registadoEm || "").localeCompare(a.registadoEm || ""));
+
+    if (registos.length === 0) {
+      lista.innerHTML = "<p>Sem registos de quilómetros para este veículo.</p>";
+      return;
+    }
+
+    lista.innerHTML = "";
+
+    registos.forEach(h => {
+
+      const data = h.registadoEm ? new Date(h.registadoEm).toLocaleString("pt-PT") : "—";
+      const tipoLabel = h.tipoRegisto === "correcao" ? "Correção manual" : "Utilização";
+
+      lista.innerHTML += `
+        <div class="item-lista">
+          <div class="item-topo">
+            <strong>${h.veiculoNome || "Veículo"}</strong>
+            <span class="badge badge-manutencao">${tipoLabel}</span>
+          </div>
+          <div class="detalhes-item">
+            ${h.tipoRegisto === "correcao"
+              ? `Km anterior: ${(h.kmAnterior || 0).toLocaleString("pt-PT")} km<br>
+                 Km novo: ${(h.kmFinal || 0).toLocaleString("pt-PT")} km<br>
+                 Motivo: ${h.motivo || "—"}`
+              : `Km ao pegar: ${(h.kmInicial || 0).toLocaleString("pt-PT")} km<br>
+                 Km ao devolver: ${(h.kmFinal || 0).toLocaleString("pt-PT")} km<br>
+                 Km percorridos: ${(h.kmPercorridos || 0).toLocaleString("pt-PT")} km<br>
+                 Condutor: ${h.condutorNome || "—"}<br>
+                 Período: ${h.dataInicio || "—"} a ${h.dataFim || "—"}`
+            }<br>
+            Registado em: ${data}<br>
+            Registado por: ${h.registadoPor || "—"}
+          </div>
+        </div>
+      `;
+
+    });
+
+  } catch (error) {
+    console.error(error);
+    lista.innerHTML = "<p>Erro ao carregar histórico.</p>";
+  }
+
+});
+
+document.getElementById("guardarCorrecaoKm")?.addEventListener("click", async () => {
+
+  const veiculoSelect = document.getElementById("veiculoCorrecaoKm");
+  const novoKm = parseInt(document.getElementById("novoKmCorrecao").value);
+  const motivo = document.getElementById("motivoCorrecaoKm").value.trim();
+  const msgEl = document.getElementById("mensagemCorrecaoKm");
+
+  msgEl.textContent = "";
+
+  if (!veiculoSelect.value) {
+    msgEl.textContent = "Seleciona um veículo.";
+    return;
+  }
+
+  if (!novoKm && novoKm !== 0) {
+    msgEl.textContent = "Indica o novo valor de quilómetros.";
+    return;
+  }
+
+  if (!motivo) {
+    msgEl.textContent = "Indica o motivo da correção.";
+    return;
+  }
+
+  const veiculoId = veiculoSelect.value;
+  const veiculoNome = veiculoSelect.options[veiculoSelect.selectedIndex].textContent;
+  const kmAnterior = parseInt(veiculoSelect.options[veiculoSelect.selectedIndex].dataset.km) || 0;
+
+  try {
+
+    await updateDoc(doc(db, "veiculos", veiculoId), {
+      quilometragem: novoKm
+    });
+
+    await addDoc(collection(db, "historicoKm"), {
+      veiculoId,
+      veiculoNome,
+      kmAnterior,
+      kmFinal: novoKm,
+      motivo,
+      registadoEm: new Date().toISOString(),
+      registadoPor: adminInfo.textContent || "Administrador",
+      tipoRegisto: "correcao"
+    });
+
+    msgEl.style.color = "green";
+    msgEl.textContent = "Correção guardada com sucesso!";
+
+    document.getElementById("novoKmCorrecao").value = "";
+    document.getElementById("motivoCorrecaoKm").value = "";
+
+    await carregarFiltroVeiculosKm();
+    await carregarVeiculos();
+
+  } catch (error) {
+    console.error(error);
+    msgEl.style.color = "red";
+    msgEl.textContent = "Erro ao guardar correção.";
+  }
+
+});
+
+// =========================
+// REGISTO DE UTILIZAÇÃO NAS REQUISIÇÕES (ADMIN/MOTORISTA)
+// =========================
+const modalUtilizacaoAdmin = document.getElementById("modalUtilizacaoAdmin");
+
+let reqUtilizacaoAdmin = null;
+
+document.getElementById("listaRequisicoes")?.addEventListener("click", async (e) => {
+
+  const btnPegar = e.target.closest(".btn-pegar-admin");
+  const btnDevolver = e.target.closest(".btn-devolver-admin");
+
+  if (btnPegar) {
+
+    reqUtilizacaoAdmin = {
+      id: btnPegar.dataset.id,
+      veiculo: btnPegar.dataset.veiculo,
+      kmAtual: parseInt(btnPegar.dataset.km) || 0,
+      modo: "pegar"
+    };
+
+    document.getElementById("tituloModalUtilizacaoAdmin").textContent = "Pegar Viatura";
+    document.getElementById("infoModalUtilizacaoAdmin").textContent = `Viatura: ${reqUtilizacaoAdmin.veiculo}`;
+    document.getElementById("kmInicialAdmin").value = reqUtilizacaoAdmin.kmAtual || "";
+    document.getElementById("mensagemUtilizacaoAdmin").textContent = "";
+
+    document.getElementById("blocoKmInicialAdmin").style.display = "block";
+    document.getElementById("blocoKmFinalAdmin").style.display = "none";
+
+    modalUtilizacaoAdmin.style.display = "flex";
+
+  }
+
+  if (btnDevolver) {
+
+    reqUtilizacaoAdmin = {
+      id: btnDevolver.dataset.id,
+      veiculo: btnDevolver.dataset.veiculo,
+      kmInicial: parseInt(btnDevolver.dataset.kmInicial) || 0,
+      modo: "devolver"
+    };
+
+    document.getElementById("tituloModalUtilizacaoAdmin").textContent = "Devolver Viatura";
+    document.getElementById("infoModalUtilizacaoAdmin").textContent = `Viatura: ${reqUtilizacaoAdmin.veiculo} | Km ao pegar: ${reqUtilizacaoAdmin.kmInicial.toLocaleString("pt-PT")} km`;
+    document.getElementById("kmFinalAdmin").value = "";
+    document.getElementById("mensagemUtilizacaoAdmin2").textContent = "";
+
+    document.getElementById("blocoKmInicialAdmin").style.display = "none";
+    document.getElementById("blocoKmFinalAdmin").style.display = "block";
+
+    modalUtilizacaoAdmin.style.display = "flex";
+
+  }
+
+});
+
+const btnFecharUtilAdmin = document.getElementById("fecharModalUtilizacaoAdmin");
+if (btnFecharUtilAdmin) btnFecharUtilAdmin.onclick = () => {
+  modalUtilizacaoAdmin.style.display = "none";
+  reqUtilizacaoAdmin = null;
+};
+
+const btnFecharUtilAdmin2 = document.getElementById("fecharModalUtilizacaoAdmin2");
+if (btnFecharUtilAdmin2) btnFecharUtilAdmin2.onclick = () => {
+  modalUtilizacaoAdmin.style.display = "none";
+  reqUtilizacaoAdmin = null;
+};
+
+document.getElementById("confirmarPegarAdmin")?.addEventListener("click", async () => {
+
+  const kmInicial = parseInt(document.getElementById("kmInicialAdmin").value);
+  const msgEl = document.getElementById("mensagemUtilizacaoAdmin");
+
+  msgEl.textContent = "";
+
+  if (!kmInicial && kmInicial !== 0) {
+    msgEl.textContent = "Indica os quilómetros atuais da viatura.";
+    return;
+  }
+
+  if (!reqUtilizacaoAdmin) return;
+
+  try {
+
+    const refReq = doc(db, "requisicoes", reqUtilizacaoAdmin.id);
+    const snapReq = await getDoc(refReq);
+    const dadosReq = snapReq.exists() ? snapReq.data() : {};
+
+    await updateDoc(refReq, {
+      kmInicial,
+      kmInicialRegistadoEm: new Date().toISOString(),
+      kmInicialRegistadoPor: adminInfo.textContent || "Administrador"
+    });
+
+    if (dadosReq.veiculoId) {
+      await updateDoc(doc(db, "veiculos", dadosReq.veiculoId), {
+        quilometragem: kmInicial
+      });
+    }
+
+    modalUtilizacaoAdmin.style.display = "none";
+    reqUtilizacaoAdmin = null;
+
+  } catch (error) {
+    console.error(error);
+    msgEl.textContent = "Erro ao registar quilómetros.";
+  }
+
+});
+
+document.getElementById("confirmarDevolverAdmin")?.addEventListener("click", async () => {
+
+  const kmFinal = parseInt(document.getElementById("kmFinalAdmin").value);
+  const msgEl = document.getElementById("mensagemUtilizacaoAdmin2");
+
+  msgEl.textContent = "";
+
+  if (!kmFinal && kmFinal !== 0) {
+    msgEl.textContent = "Indica os quilómetros ao devolver.";
+    return;
+  }
+
+  if (!reqUtilizacaoAdmin) return;
+
+  if (kmFinal < reqUtilizacaoAdmin.kmInicial) {
+    msgEl.textContent = "Os km finais não podem ser menores que os km iniciais.";
+    return;
+  }
+
+  try {
+
+    const refReq = doc(db, "requisicoes", reqUtilizacaoAdmin.id);
+    const snapReq = await getDoc(refReq);
+    const dadosReq = snapReq.exists() ? snapReq.data() : {};
+
+    const kmPercorridos = kmFinal - (dadosReq.kmInicial || 0);
+
+    await updateDoc(refReq, {
+      kmFinal,
+      kmPercorridos,
+      kmFinalRegistadoEm: new Date().toISOString(),
+      kmFinalRegistadoPor: adminInfo.textContent || "Administrador"
+    });
+
+    if (dadosReq.veiculoId) {
+
+      await updateDoc(doc(db, "veiculos", dadosReq.veiculoId), {
+        quilometragem: kmFinal
+      });
+
+      await addDoc(collection(db, "historicoKm"), {
+        veiculoId: dadosReq.veiculoId,
+        veiculoNome: dadosReq.veiculoNome,
+        requisicaoId: reqUtilizacaoAdmin.id,
+        kmInicial: dadosReq.kmInicial || 0,
+        kmFinal,
+        kmPercorridos,
+        condutorNome: dadosReq.condutorNome,
+        dataInicio: dadosReq.dataInicio || dadosReq.data,
+        dataFim: dadosReq.dataFim || dadosReq.data,
+        registadoEm: new Date().toISOString(),
+        registadoPor: adminInfo.textContent || "Administrador",
+        tipoRegisto: "utilizacao"
+      });
+
+    }
+
+    modalUtilizacaoAdmin.style.display = "none";
+    reqUtilizacaoAdmin = null;
+
+  } catch (error) {
+    console.error(error);
+    msgEl.textContent = "Erro ao registar devolução.";
+  }
+
+});
+
+carregarFiltroVeiculosKm();

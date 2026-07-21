@@ -241,6 +241,21 @@ async function carregarMinhasRequisicoes() {
 
       const podeCancel = r.estado !== "cancelada";
 
+      // Estado de utilização
+      const temKmInicial = r.kmInicial !== undefined && r.kmInicial !== null;
+      const temKmFinal = r.kmFinal !== undefined && r.kmFinal !== null;
+      const kmPercorridos = temKmFinal ? (r.kmFinal - r.kmInicial) : null;
+
+      let botaoUtilizacao = "";
+
+      if (r.estado === "confirmada") {
+        if (!temKmInicial) {
+          botaoUtilizacao = `<button class="btn-pegar-viatura btn-verde" data-id="${id}" data-veiculo="${r.veiculoNome || ''}" data-km="${r.kmVeiculoAtual || 0}">Pegar viatura</button>`;
+        } else if (!temKmFinal) {
+          botaoUtilizacao = `<button class="btn-devolver-viatura btn-azul" data-id="${id}" data-veiculo="${r.veiculoNome || ''}" data-km-inicial="${r.kmInicial}">Devolver viatura</button>`;
+        }
+      }
+
       listaMinhasRequisicoes.innerHTML += `
         <div class="item-lista">
           <div class="item-topo">
@@ -253,17 +268,23 @@ async function carregarMinhasRequisicoes() {
             Condutor: ${r.condutorNome || "—"}<br>
             Período: ${periodoTexto}<br>
             Observação: ${r.observacao || "—"}
+            ${temKmInicial ? `<br>Km ao pegar: ${r.kmInicial.toLocaleString("pt-PT")} km` : ""}
+            ${temKmFinal ? `<br>Km ao devolver: ${r.kmFinal.toLocaleString("pt-PT")} km` : ""}
+            ${kmPercorridos !== null ? `<br><strong>Km percorridos: ${kmPercorridos.toLocaleString("pt-PT")} km</strong>` : ""}
             ${
               r.estado === "cancelada" && r.motivoCancelamento
                 ? `<br>Motivo do cancelamento: ${r.motivoCancelamento}`
                 : ""
             }
           </div>
-          ${
-            podeCancel
-              ? `<button class="btn-cancelar-requisicao btn-vermelho" data-id="${id}">Cancelar</button>`
-              : ""
-          }
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            ${botaoUtilizacao}
+            ${
+              podeCancel
+                ? `<button class="btn-cancelar-requisicao btn-vermelho" data-id="${id}">Cancelar</button>`
+                : ""
+            }
+          </div>
         </div>
       `;
     });
@@ -322,7 +343,8 @@ document.getElementById("enviarRequisicao").onclick = async () => {
   const condutorSelecionado = selectCondutor.options[selectCondutor.selectedIndex];
 
   try {
-    const precisaValidacao = await requisicoesPrecisamValidacao();
+    // Aprovação automática: só fica pendente se houver conflito real
+    const estadoInicial = veiculoTemConflito(veiculoId, diasPedidos) ? "pendente" : "confirmada";
 
     await addDoc(collection(db, "requisicoes"), {
       funcionarioId: utilizadorAtual.uid,
@@ -337,7 +359,7 @@ document.getElementById("enviarRequisicao").onclick = async () => {
       dias: diasPedidos,
       data: inicio,
       observacao,
-      estado: precisaValidacao ? "pendente" : "confirmada",
+      estado: estadoInicial,
       criadoEm: new Date().toISOString()
     });
 
@@ -434,6 +456,211 @@ document.getElementById("sairAreaCondutor").onclick = async () => {
   }
 };
 
+// =========================
+// REGISTO DE UTILIZAÇÃO (PEGAR / DEVOLVER VIATURA)
+// =========================
+const modalUtilizacao = document.getElementById("modalUtilizacao");
+const blocoKmInicial = document.getElementById("blocoKmInicial");
+const blocoKmFinal = document.getElementById("blocoKmFinal");
+const tituloModalUtilizacao = document.getElementById("tituloModalUtilizacao");
+const infoModalUtilizacao = document.getElementById("infoModalUtilizacao");
+
+let requisicaoUtilizacaoAtual = null;
+
+// Abrir modal "Pegar viatura"
+listaMinhasRequisicoes.addEventListener("click", async (e) => {
+
+  const btnPegar = e.target.closest(".btn-pegar-viatura");
+  const btnDevolver = e.target.closest(".btn-devolver-viatura");
+
+  if (btnPegar) {
+
+    requisicaoUtilizacaoAtual = {
+      id: btnPegar.dataset.id,
+      veiculo: btnPegar.dataset.veiculo,
+      kmAtual: parseInt(btnPegar.dataset.km) || 0,
+      modo: "pegar"
+    };
+
+    tituloModalUtilizacao.textContent = "Pegar Viatura";
+    infoModalUtilizacao.textContent = `Viatura: ${requisicaoUtilizacaoAtual.veiculo}`;
+
+    document.getElementById("kmInicial").value = requisicaoUtilizacaoAtual.kmAtual || "";
+    document.getElementById("mensagemUtilizacao").textContent = "";
+
+    blocoKmInicial.style.display = "block";
+    blocoKmFinal.style.display = "none";
+
+    modalUtilizacao.style.display = "flex";
+
+  }
+
+  if (btnDevolver) {
+
+    requisicaoUtilizacaoAtual = {
+      id: btnDevolver.dataset.id,
+      veiculo: btnDevolver.dataset.veiculo,
+      kmInicial: parseInt(btnDevolver.dataset.kmInicial) || 0,
+      modo: "devolver"
+    };
+
+    tituloModalUtilizacao.textContent = "Devolver Viatura";
+    infoModalUtilizacao.textContent = `Viatura: ${requisicaoUtilizacaoAtual.veiculo} | Km ao pegar: ${requisicaoUtilizacaoAtual.kmInicial.toLocaleString("pt-PT")} km`;
+
+    document.getElementById("kmFinal").value = "";
+    document.getElementById("mensagemUtilizacao2").textContent = "";
+
+    blocoKmInicial.style.display = "none";
+    blocoKmFinal.style.display = "block";
+
+    modalUtilizacao.style.display = "flex";
+
+  }
+
+});
+
+// Fechar modal
+document.getElementById("fecharModalUtilizacao").onclick = () => {
+  modalUtilizacao.style.display = "none";
+  requisicaoUtilizacaoAtual = null;
+};
+
+document.getElementById("fecharModalUtilizacao2").onclick = () => {
+  modalUtilizacao.style.display = "none";
+  requisicaoUtilizacaoAtual = null;
+};
+
+// Confirmar "Pegar viatura"
+document.getElementById("confirmarPegar").onclick = async () => {
+
+  const kmInicial = parseInt(document.getElementById("kmInicial").value);
+  const msgEl = document.getElementById("mensagemUtilizacao");
+
+  msgEl.textContent = "";
+
+  if (!kmInicial && kmInicial !== 0) {
+    msgEl.textContent = "Indica os quilómetros atuais da viatura.";
+    return;
+  }
+
+  if (!requisicaoUtilizacaoAtual) return;
+
+  try {
+
+    const refReq = doc(db, "requisicoes", requisicaoUtilizacaoAtual.id);
+    const snapReq = await getDoc(refReq);
+
+    if (!snapReq.exists()) {
+      msgEl.textContent = "Requisição não encontrada.";
+      return;
+    }
+
+    const dadosReq = snapReq.data();
+
+    await updateDoc(refReq, {
+      kmInicial,
+      kmInicialRegistadoEm: new Date().toISOString(),
+      kmInicialRegistadoPor: utilizadorAtual.email
+    });
+
+    // Atualizar km atual do veículo
+    if (dadosReq.veiculoId) {
+      await updateDoc(doc(db, "veiculos", dadosReq.veiculoId), {
+        quilometragem: kmInicial
+      });
+    }
+
+    modalUtilizacao.style.display = "none";
+    requisicaoUtilizacaoAtual = null;
+
+    await carregarMinhasRequisicoes();
+
+  } catch (error) {
+    console.error(error);
+    msgEl.textContent = "Erro ao registar quilómetros.";
+  }
+
+};
+
+// Confirmar "Devolver viatura"
+document.getElementById("confirmarDevolver").onclick = async () => {
+
+  const kmFinal = parseInt(document.getElementById("kmFinal").value);
+  const msgEl = document.getElementById("mensagemUtilizacao2");
+
+  msgEl.textContent = "";
+
+  if (!kmFinal && kmFinal !== 0) {
+    msgEl.textContent = "Indica os quilómetros da viatura ao devolver.";
+    return;
+  }
+
+  if (!requisicaoUtilizacaoAtual) return;
+
+  if (kmFinal < requisicaoUtilizacaoAtual.kmInicial) {
+    msgEl.textContent = "Os km finais não podem ser menores que os km iniciais.";
+    return;
+  }
+
+  try {
+
+    const refReq = doc(db, "requisicoes", requisicaoUtilizacaoAtual.id);
+    const snapReq = await getDoc(refReq);
+
+    if (!snapReq.exists()) {
+      msgEl.textContent = "Requisição não encontrada.";
+      return;
+    }
+
+    const dadosReq = snapReq.data();
+    const kmPercorridos = kmFinal - (dadosReq.kmInicial || 0);
+
+    await updateDoc(refReq, {
+      kmFinal,
+      kmPercorridos,
+      kmFinalRegistadoEm: new Date().toISOString(),
+      kmFinalRegistadoPor: utilizadorAtual.email
+    });
+
+    // Atualizar km atual do veículo + adicionar ao histórico
+    if (dadosReq.veiculoId) {
+
+      const refVeiculo = doc(db, "veiculos", dadosReq.veiculoId);
+
+      await updateDoc(refVeiculo, {
+        quilometragem: kmFinal
+      });
+
+      // Guardar no histórico de km do veículo
+      await addDoc(collection(db, "historicoKm"), {
+        veiculoId: dadosReq.veiculoId,
+        veiculoNome: dadosReq.veiculoNome,
+        requisicaoId: requisicaoUtilizacaoAtual.id,
+        kmInicial: dadosReq.kmInicial || 0,
+        kmFinal,
+        kmPercorridos,
+        condutorNome: dadosReq.condutorNome,
+        dataInicio: dadosReq.dataInicio || dadosReq.data,
+        dataFim: dadosReq.dataFim || dadosReq.data,
+        registadoEm: new Date().toISOString(),
+        registadoPor: utilizadorAtual.email,
+        tipoRegisto: "utilizacao"
+      });
+
+    }
+
+    modalUtilizacao.style.display = "none";
+    requisicaoUtilizacaoAtual = null;
+
+    await carregarMinhasRequisicoes();
+
+  } catch (error) {
+    console.error(error);
+    msgEl.textContent = "Erro ao registar devolução.";
+  }
+
+};
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -463,3 +690,140 @@ onAuthStateChanged(auth, async (user) => {
   await carregarCondutores();
   await carregarMinhasRequisicoes();
 });
+
+// =========================
+// UTILIZAÇÃO SEM REQUISIÇÃO PRÉVIA (CONDUTOR)
+// =========================
+const modalUtilSemReq = document.getElementById("modalUtilizacaoSemReq");
+
+document.getElementById("btnUtilizacaoSemRequisicao").onclick = async () => {
+
+  // Preencher selects com veículos e condutores ativos
+  const selVeiculo = document.getElementById("veiculoUtilSemReq");
+  const selCondutor = document.getElementById("condutorUtilSemReq");
+
+  selVeiculo.innerHTML = `<option value="">Selecionar veículo</option>`;
+  selCondutor.innerHTML = `<option value="">Selecionar condutor</option>`;
+
+  const veiculosSnap = await getDocs(collection(db, "veiculos"));
+  const condutoresSnap = await getDocs(collection(db, "condutores"));
+
+  veiculosSnap.forEach(docSnap => {
+    const v = docSnap.data();
+    if (v.estado === "ativo") {
+      const nome = `${v.marca || ""} ${v.modelo || ""} - ${v.matricula || ""}`.trim();
+      selVeiculo.innerHTML += `<option value="${docSnap.id}" data-km="${v.quilometragem || 0}">${nome}</option>`;
+    }
+  });
+
+  condutoresSnap.forEach(docSnap => {
+    const c = docSnap.data();
+    if (c.estado === "ativo") {
+      selCondutor.innerHTML += `<option value="${docSnap.id}">${c.nome || "Sem nome"}</option>`;
+    }
+  });
+
+  // Pré-preencher km com o valor atual do veículo quando selecionado
+  selVeiculo.onchange = () => {
+    const opt = selVeiculo.options[selVeiculo.selectedIndex];
+    const kmAtual = opt.dataset.km || "";
+    document.getElementById("kmUtilSemReq").value = kmAtual;
+  };
+
+  document.getElementById("mensagemUtilSemReq").textContent = "";
+  document.getElementById("obsUtilSemReq").value = "";
+  document.getElementById("kmUtilSemReq").value = "";
+
+  modalUtilSemReq.style.display = "flex";
+
+};
+
+document.getElementById("fecharUtilSemReq").onclick = () => {
+  modalUtilSemReq.style.display = "none";
+};
+
+document.getElementById("confirmarUtilSemReq").onclick = async () => {
+
+  const selVeiculo = document.getElementById("veiculoUtilSemReq");
+  const selCondutor = document.getElementById("condutorUtilSemReq");
+  const kmInicial = parseInt(document.getElementById("kmUtilSemReq").value);
+  const observacao = document.getElementById("obsUtilSemReq").value.trim();
+  const msgEl = document.getElementById("mensagemUtilSemReq");
+
+  msgEl.textContent = "";
+
+  if (!selVeiculo.value) {
+    msgEl.textContent = "Seleciona um veículo.";
+    return;
+  }
+
+  if (!selCondutor.value) {
+    msgEl.textContent = "Seleciona um condutor.";
+    return;
+  }
+
+  if (!kmInicial && kmInicial !== 0) {
+    msgEl.textContent = "Indica os quilómetros atuais da viatura.";
+    return;
+  }
+
+  if (!observacao) {
+    msgEl.textContent = "Indica o motivo ou destino da utilização.";
+    return;
+  }
+
+  if (!utilizadorAtual) {
+    msgEl.textContent = "Sem sessão iniciada.";
+    return;
+  }
+
+  const veiculoId = selVeiculo.value;
+  const veiculoNome = selVeiculo.options[selVeiculo.selectedIndex].textContent.trim();
+  const condutorId = selCondutor.value;
+  const condutorNome = selCondutor.options[selCondutor.selectedIndex].textContent.trim();
+  const hoje = new Date().toISOString().split("T")[0];
+
+  try {
+
+    // Criar requisição automaticamente
+    const novaReqRef = await addDoc(collection(db, "requisicoes"), {
+      funcionarioId: utilizadorAtual.uid,
+      funcionarioEmail: utilizadorAtual.email,
+      criadoPor: "condutor",
+      veiculoId,
+      veiculoNome,
+      condutorId,
+      condutorNome,
+      dataInicio: hoje,
+      dataFim: hoje,
+      dias: [hoje],
+      data: hoje,
+      observacao,
+      estado: "confirmada",
+      semRequisicaoPrevia: true,
+      kmInicial,
+      kmInicialRegistadoEm: new Date().toISOString(),
+      kmInicialRegistadoPor: utilizadorAtual.email,
+      criadoEm: new Date().toISOString()
+    });
+
+    // Atualizar km do veículo
+    await updateDoc(doc(db, "veiculos", veiculoId), {
+      quilometragem: kmInicial
+    });
+
+    modalUtilSemReq.style.display = "none";
+
+    await carregarMinhasRequisicoes();
+
+    mostrarMensagemRequisicao(
+      "Registo criado. Quando devolveres a viatura, clica em 'Devolver viatura' na lista abaixo.",
+      "green"
+    );
+
+  } catch (error) {
+    console.error(error);
+    msgEl.textContent = "Erro ao criar registo de utilização.";
+  }
+
+};
